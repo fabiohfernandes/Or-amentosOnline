@@ -14,6 +14,24 @@ const { Pool } = require('pg');
 const Redis = require('redis');
 const winston = require('winston');
 
+// Import new modules
+const { initializeDatabase, checkConnection } = require('./models/database');
+const ProposalModel = require('./models/Proposal');
+const ClientModel = require('./models/Client');
+const {
+  proposalSchemas,
+  clientSchemas,
+  validateRequest,
+  sanitizeMiddleware,
+  validatePagination,
+  validateIdParam
+} = require('./middleware/validation');
+const {
+  lgpdAuditLog,
+  PROCESSING_OPERATIONS,
+  LEGAL_BASES
+} = require('./middleware/lgpd');
+
 // Initialize Express app
 const app = express();
 const port = process.env.PORT || 3000;
@@ -110,6 +128,9 @@ app.use(compression());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+// Input sanitization middleware
+app.use(sanitizeMiddleware);
+
 // Request logging middleware
 app.use((req, res, next) => {
   logger.info(`${req.method} ${req.path} - ${req.ip}`, {
@@ -145,7 +166,7 @@ const authenticateToken = (req, res, next) => {
 app.get('/api/v1/health', async (req, res) => {
   try {
     // Check database connection
-    const dbResult = await pool.query('SELECT NOW()');
+    const dbStatus = await checkConnection();
 
     // Check Redis connection (if available)
     let redisStatus = 'not_configured';
@@ -165,10 +186,7 @@ app.get('/api/v1/health', async (req, res) => {
       service: 'orcamentos-online-api',
       version: '1.0.0',
       environment: process.env.NODE_ENV || 'development',
-      database: {
-        status: 'connected',
-        timestamp: dbResult.rows[0].now
-      },
+      database: dbStatus,
       redis: {
         status: redisStatus
       },
@@ -195,54 +213,66 @@ app.post('/api/v1/auth/login', async (req, res) => {
       });
     }
 
-    // For Phase 1 testing - create a demo user
-    if (email === 'demo@orcamentos.com' && password === 'demo123') {
-      const user = {
-        id: 1,
-        email: 'demo@orcamentos.com',
-        name: 'Demo User',
-        role: 'admin'
-      };
+    // Check if user exists in database
+    const userQuery = await pool.query(
+      'SELECT id, name, email, password_hash, role FROM users WHERE email = $1',
+      [email.toLowerCase()]
+    );
 
-      const token = jwt.sign(
-        { userId: user.id, email: user.email, role: user.role },
-        process.env.JWT_SECRET || 'fallback_secret',
-        { expiresIn: process.env.JWT_EXPIRES_IN || '15m' }
-      );
-
-      const refreshToken = jwt.sign(
-        { userId: user.id, type: 'refresh' },
-        process.env.JWT_REFRESH_SECRET || 'fallback_refresh_secret',
-        { expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d' }
-      );
-
-      logger.info(`User logged in: ${email}`);
-
-      res.json({
-        success: true,
-        message: 'Login successful',
-        data: {
-          user: {
-            id: user.id,
-            email: user.email,
-            name: user.name,
-            role: user.role
-          },
-          tokens: {
-            accessToken: token,
-            refreshToken: refreshToken,
-            expiresAt: new Date(Date.now() + 15 * 60 * 1000).toISOString(), // 15 minutes from now
-            expiresIn: 900
-          }
-        }
-      });
-    } else {
-      res.status(401).json({
+    if (userQuery.rows.length === 0) {
+      return res.status(401).json({
         success: false,
         message: 'Invalid credentials',
-        errors: ['Use demo@orcamentos.com / demo123 for Phase 1 testing']
+        errors: ['Email or password is incorrect']
       });
     }
+
+    const user = userQuery.rows[0];
+
+    // Verify password
+    const isPasswordValid = await bcrypt.compare(password, user.password_hash);
+
+    if (!isPasswordValid) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid credentials',
+        errors: ['Email or password is incorrect']
+      });
+    }
+
+    // Generate JWT tokens
+    const token = jwt.sign(
+      { userId: user.id, email: user.email, role: user.role },
+      process.env.JWT_SECRET || 'fallback_secret',
+      { expiresIn: process.env.JWT_EXPIRES_IN || '15m' }
+    );
+
+    const refreshToken = jwt.sign(
+      { userId: user.id, type: 'refresh' },
+      process.env.JWT_REFRESH_SECRET || 'fallback_refresh_secret',
+      { expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d' }
+    );
+
+    logger.info(`User logged in: ${email}`);
+
+    res.json({
+      success: true,
+      message: 'Login successful',
+      data: {
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          role: user.role
+        },
+        tokens: {
+          accessToken: token,
+          refreshToken: refreshToken,
+          expiresAt: new Date(Date.now() + 15 * 60 * 1000).toISOString(), // 15 minutes from now
+          expiresIn: 900
+        }
+      }
+    });
   } catch (error) {
     logger.error('Login error:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -398,55 +428,505 @@ app.get('/api/v1/auth/profile', authenticateToken, (req, res) => {
       id: req.user.userId,
       email: req.user.email,
       role: req.user.role,
-      name: req.user.email === 'demo@orcamentos.com' ? 'Demo User' : 'User'
+      name: 'User'
     }
   });
 });
 
-// Proposals endpoints (Phase 1 basic structure)
-app.get('/api/v1/proposals', authenticateToken, async (req, res) => {
-  try {
-    // For Phase 1 - return mock data
-    const mockProposals = [
-      {
-        id: '1',
-        title: 'Orçamento Website Corporativo',
-        client: 'Empresa ABC Ltda',
-        total: 15000.00,
-        status: 'draft',
-        createdAt: '2025-09-20T10:00:00Z',
-        updatedAt: '2025-09-22T14:30:00Z'
-      },
-      {
-        id: '2',
-        title: 'Sistema E-commerce',
-        client: 'Loja XYZ',
-        total: 25000.00,
-        status: 'pending',
-        createdAt: '2025-09-18T08:15:00Z',
-        updatedAt: '2025-09-23T09:45:00Z'
-      }
-    ];
+// =================
+// PROPOSAL ENDPOINTS
+// =================
 
-    res.json({
-      success: true,
-      message: 'Proposals retrieved successfully',
-      data: {
-        proposals: mockProposals,
-        total: mockProposals.length,
-        page: parseInt(req.query.page || '1'),
-        limit: parseInt(req.query.limit || '20')
+// Create new proposal
+app.post('/api/v1/proposals',
+  authenticateToken,
+  lgpdAuditLog(PROCESSING_OPERATIONS.CREATE, LEGAL_BASES.CONTRACT),
+  validateRequest(proposalSchemas.create),
+  async (req, res) => {
+    try {
+      const proposal = await ProposalModel.create(req.body, req.user.userId);
+
+      res.status(201).json({
+        success: true,
+        message: 'Proposal created successfully',
+        data: {
+          proposal
+        }
+      });
+    } catch (error) {
+      logger.error('Error creating proposal:', error);
+
+      if (error.message.includes('violates foreign key constraint')) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid client ID',
+          errors: ['The specified client does not exist']
+        });
       }
-    });
-  } catch (error) {
-    logger.error('Error fetching proposals:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch proposals',
-      errors: ['Internal server error']
-    });
+
+      res.status(500).json({
+        success: false,
+        message: 'Failed to create proposal',
+        errors: ['Internal server error']
+      });
+    }
   }
-});
+);
+
+// List proposals with filtering and pagination
+app.get('/api/v1/proposals',
+  authenticateToken,
+  lgpdAuditLog(PROCESSING_OPERATIONS.READ, LEGAL_BASES.LEGITIMATE_INTERESTS),
+  validateRequest(proposalSchemas.list, 'query'),
+  async (req, res) => {
+    try {
+      const result = await ProposalModel.list(req.query, req.user.userId);
+
+      res.json({
+        success: true,
+        message: 'Proposals retrieved successfully',
+        data: result
+      });
+    } catch (error) {
+      logger.error('Error fetching proposals:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to fetch proposals',
+        errors: ['Internal server error']
+      });
+    }
+  }
+);
+
+// Get specific proposal
+app.get('/api/v1/proposals/:id',
+  authenticateToken,
+  validateIdParam,
+  lgpdAuditLog(PROCESSING_OPERATIONS.READ, LEGAL_BASES.LEGITIMATE_INTERESTS),
+  async (req, res) => {
+    try {
+      const proposal = await ProposalModel.findById(req.params.id, req.user.userId);
+
+      if (!proposal) {
+        return res.status(404).json({
+          success: false,
+          message: 'Proposal not found',
+          errors: ['Proposal does not exist or you do not have permission to access it']
+        });
+      }
+
+      res.json({
+        success: true,
+        message: 'Proposal retrieved successfully',
+        data: {
+          proposal
+        }
+      });
+    } catch (error) {
+      logger.error('Error fetching proposal:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to fetch proposal',
+        errors: ['Internal server error']
+      });
+    }
+  }
+);
+
+// Update proposal
+app.put('/api/v1/proposals/:id',
+  authenticateToken,
+  validateIdParam,
+  lgpdAuditLog(PROCESSING_OPERATIONS.UPDATE, LEGAL_BASES.CONTRACT),
+  validateRequest(proposalSchemas.update),
+  async (req, res) => {
+    try {
+      const proposal = await ProposalModel.update(req.params.id, req.body, req.user.userId);
+
+      if (!proposal) {
+        return res.status(404).json({
+          success: false,
+          message: 'Proposal not found',
+          errors: ['Proposal does not exist or you do not have permission to update it']
+        });
+      }
+
+      res.json({
+        success: true,
+        message: 'Proposal updated successfully',
+        data: {
+          proposal
+        }
+      });
+    } catch (error) {
+      logger.error('Error updating proposal:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to update proposal',
+        errors: ['Internal server error']
+      });
+    }
+  }
+);
+
+// Delete proposal
+app.delete('/api/v1/proposals/:id',
+  authenticateToken,
+  validateIdParam,
+  lgpdAuditLog(PROCESSING_OPERATIONS.DELETE, LEGAL_BASES.LEGITIMATE_INTERESTS),
+  async (req, res) => {
+    try {
+      const success = await ProposalModel.delete(req.params.id, req.user.userId);
+
+      if (!success) {
+        return res.status(404).json({
+          success: false,
+          message: 'Proposal not found',
+          errors: ['Proposal does not exist or you do not have permission to delete it']
+        });
+      }
+
+      res.json({
+        success: true,
+        message: 'Proposal deleted successfully'
+      });
+    } catch (error) {
+      logger.error('Error deleting proposal:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to delete proposal',
+        errors: ['Internal server error']
+      });
+    }
+  }
+);
+
+// Duplicate proposal
+app.post('/api/v1/proposals/:id/duplicate',
+  authenticateToken,
+  validateIdParam,
+  lgpdAuditLog(PROCESSING_OPERATIONS.CREATE, LEGAL_BASES.CONTRACT),
+  async (req, res) => {
+    try {
+      const proposal = await ProposalModel.duplicate(req.params.id, req.user.userId);
+
+      if (!proposal) {
+        return res.status(404).json({
+          success: false,
+          message: 'Proposal not found',
+          errors: ['Proposal does not exist or you do not have permission to duplicate it']
+        });
+      }
+
+      res.status(201).json({
+        success: true,
+        message: 'Proposal duplicated successfully',
+        data: {
+          proposal
+        }
+      });
+    } catch (error) {
+      logger.error('Error duplicating proposal:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to duplicate proposal',
+        errors: ['Internal server error']
+      });
+    }
+  }
+);
+
+// Get proposal statistics
+app.get('/api/v1/proposals/stats/summary',
+  authenticateToken,
+  lgpdAuditLog(PROCESSING_OPERATIONS.READ, LEGAL_BASES.LEGITIMATE_INTERESTS),
+  async (req, res) => {
+    try {
+      const stats = await ProposalModel.getStats(req.user.userId);
+
+      res.json({
+        success: true,
+        message: 'Proposal statistics retrieved successfully',
+        data: {
+          stats
+        }
+      });
+    } catch (error) {
+      logger.error('Error fetching proposal statistics:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to fetch proposal statistics',
+        errors: ['Internal server error']
+      });
+    }
+  }
+);
+
+// =================
+// CLIENT ENDPOINTS
+// =================
+
+// Create new client
+app.post('/api/v1/clients',
+  authenticateToken,
+  lgpdAuditLog(PROCESSING_OPERATIONS.CREATE, LEGAL_BASES.CONTRACT),
+  validateRequest(clientSchemas.create),
+  async (req, res) => {
+    try {
+      const client = await ClientModel.create(req.body, req.user.userId);
+
+      res.status(201).json({
+        success: true,
+        message: 'Client created successfully',
+        data: {
+          client
+        }
+      });
+    } catch (error) {
+      logger.error('Error creating client:', error);
+
+      if (error.message.includes('already exists')) {
+        return res.status(409).json({
+          success: false,
+          message: 'Client creation failed',
+          errors: [error.message]
+        });
+      }
+
+      if (error.message.includes('Invalid')) {
+        return res.status(400).json({
+          success: false,
+          message: 'Validation failed',
+          errors: [error.message]
+        });
+      }
+
+      res.status(500).json({
+        success: false,
+        message: 'Failed to create client',
+        errors: ['Internal server error']
+      });
+    }
+  }
+);
+
+// List clients with filtering and pagination
+app.get('/api/v1/clients',
+  authenticateToken,
+  lgpdAuditLog(PROCESSING_OPERATIONS.READ, LEGAL_BASES.LEGITIMATE_INTERESTS),
+  validateRequest(clientSchemas.list, 'query'),
+  async (req, res) => {
+    try {
+      const result = await ClientModel.list(req.query, req.user.userId);
+
+      res.json({
+        success: true,
+        message: 'Clients retrieved successfully',
+        data: result
+      });
+    } catch (error) {
+      logger.error('Error fetching clients:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to fetch clients',
+        errors: ['Internal server error']
+      });
+    }
+  }
+);
+
+// Get specific client
+app.get('/api/v1/clients/:id',
+  authenticateToken,
+  validateIdParam,
+  lgpdAuditLog(PROCESSING_OPERATIONS.READ, LEGAL_BASES.LEGITIMATE_INTERESTS),
+  async (req, res) => {
+    try {
+      const client = await ClientModel.findById(req.params.id, req.user.userId);
+
+      if (!client) {
+        return res.status(404).json({
+          success: false,
+          message: 'Client not found',
+          errors: ['Client does not exist or you do not have permission to access it']
+        });
+      }
+
+      res.json({
+        success: true,
+        message: 'Client retrieved successfully',
+        data: {
+          client
+        }
+      });
+    } catch (error) {
+      logger.error('Error fetching client:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to fetch client',
+        errors: ['Internal server error']
+      });
+    }
+  }
+);
+
+// Update client
+app.put('/api/v1/clients/:id',
+  authenticateToken,
+  validateIdParam,
+  lgpdAuditLog(PROCESSING_OPERATIONS.UPDATE, LEGAL_BASES.CONTRACT),
+  validateRequest(clientSchemas.update),
+  async (req, res) => {
+    try {
+      const client = await ClientModel.update(req.params.id, req.body, req.user.userId);
+
+      if (!client) {
+        return res.status(404).json({
+          success: false,
+          message: 'Client not found',
+          errors: ['Client does not exist or you do not have permission to update it']
+        });
+      }
+
+      res.json({
+        success: true,
+        message: 'Client updated successfully',
+        data: {
+          client
+        }
+      });
+    } catch (error) {
+      logger.error('Error updating client:', error);
+
+      if (error.message.includes('already exists')) {
+        return res.status(409).json({
+          success: false,
+          message: 'Client update failed',
+          errors: [error.message]
+        });
+      }
+
+      if (error.message.includes('Invalid')) {
+        return res.status(400).json({
+          success: false,
+          message: 'Validation failed',
+          errors: [error.message]
+        });
+      }
+
+      res.status(500).json({
+        success: false,
+        message: 'Failed to update client',
+        errors: ['Internal server error']
+      });
+    }
+  }
+);
+
+// Delete client
+app.delete('/api/v1/clients/:id',
+  authenticateToken,
+  validateIdParam,
+  lgpdAuditLog(PROCESSING_OPERATIONS.DELETE, LEGAL_BASES.LEGITIMATE_INTERESTS),
+  async (req, res) => {
+    try {
+      const success = await ClientModel.delete(req.params.id, req.user.userId);
+
+      if (!success) {
+        return res.status(404).json({
+          success: false,
+          message: 'Client not found',
+          errors: ['Client does not exist or you do not have permission to delete it']
+        });
+      }
+
+      res.json({
+        success: true,
+        message: 'Client deleted successfully'
+      });
+    } catch (error) {
+      logger.error('Error deleting client:', error);
+
+      if (error.message.includes('Cannot delete client')) {
+        return res.status(409).json({
+          success: false,
+          message: 'Cannot delete client',
+          errors: [error.message]
+        });
+      }
+
+      res.status(500).json({
+        success: false,
+        message: 'Failed to delete client',
+        errors: ['Internal server error']
+      });
+    }
+  }
+);
+
+// Search clients
+app.get('/api/v1/clients/search',
+  authenticateToken,
+  lgpdAuditLog(PROCESSING_OPERATIONS.READ, LEGAL_BASES.LEGITIMATE_INTERESTS),
+  async (req, res) => {
+    try {
+      const { q, limit = 10 } = req.query;
+
+      if (!q || q.length < 2) {
+        return res.status(400).json({
+          success: false,
+          message: 'Search query required',
+          errors: ['Search query must be at least 2 characters long']
+        });
+      }
+
+      const clients = await ClientModel.search(q, req.user.userId, parseInt(limit));
+
+      res.json({
+        success: true,
+        message: 'Search completed successfully',
+        data: {
+          clients,
+          query: q,
+          count: clients.length
+        }
+      });
+    } catch (error) {
+      logger.error('Error searching clients:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Search failed',
+        errors: ['Internal server error']
+      });
+    }
+  }
+);
+
+// Get client statistics
+app.get('/api/v1/clients/stats/summary',
+  authenticateToken,
+  lgpdAuditLog(PROCESSING_OPERATIONS.READ, LEGAL_BASES.LEGITIMATE_INTERESTS),
+  async (req, res) => {
+    try {
+      const stats = await ClientModel.getStats(req.user.userId);
+
+      res.json({
+        success: true,
+        message: 'Client statistics retrieved successfully',
+        data: {
+          stats
+        }
+      });
+    } catch (error) {
+      logger.error('Error fetching client statistics:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to fetch client statistics',
+        errors: ['Internal server error']
+      });
+    }
+  }
+);
 
 // API documentation endpoint
 app.get('/api/v1', (req, res) => {
@@ -463,13 +943,25 @@ app.get('/api/v1', (req, res) => {
         profile: 'GET /api/v1/auth/profile'
       },
       proposals: {
-        list: 'GET /api/v1/proposals'
+        list: 'GET /api/v1/proposals',
+        create: 'POST /api/v1/proposals',
+        get: 'GET /api/v1/proposals/:id',
+        update: 'PUT /api/v1/proposals/:id',
+        delete: 'DELETE /api/v1/proposals/:id',
+        duplicate: 'POST /api/v1/proposals/:id/duplicate',
+        stats: 'GET /api/v1/proposals/stats/summary'
+      },
+      clients: {
+        list: 'GET /api/v1/clients',
+        create: 'POST /api/v1/clients',
+        get: 'GET /api/v1/clients/:id',
+        update: 'PUT /api/v1/clients/:id',
+        delete: 'DELETE /api/v1/clients/:id',
+        search: 'GET /api/v1/clients/search',
+        stats: 'GET /api/v1/clients/stats/summary'
       }
     },
-    demo_credentials: {
-      email: 'demo@orcamentos.com',
-      password: 'demo123'
-    }
+    note: 'Register users or use existing database credentials to login'
   });
 });
 
@@ -514,13 +1006,25 @@ process.on('SIGINT', async () => {
   process.exit(0);
 });
 
-// Start server
-app.listen(port, () => {
-  logger.info(`🚀 OrçamentosOnline API server started on port ${port}`, {
-    port,
-    environment: process.env.NODE_ENV || 'development',
-    pid: process.pid
-  });
-});
+// Initialize database and start server
+(async () => {
+  try {
+    // Initialize database tables
+    await initializeDatabase();
+    logger.info('Database initialized successfully');
+
+    // Start server
+    app.listen(port, () => {
+      logger.info(`🚀 OrçamentosOnline API server started on port ${port}`, {
+        port,
+        environment: process.env.NODE_ENV || 'development',
+        pid: process.pid
+      });
+    });
+  } catch (error) {
+    logger.error('Failed to initialize application:', error);
+    process.exit(1);
+  }
+})();
 
 module.exports = app;

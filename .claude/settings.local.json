@@ -17,7 +17,8 @@
       "Bash(./start-all.sh)",
       "Bash(curl:*)",
       "Bash(python:*)",
-      "Bash(docker logs:*)"
+      "Bash(docker logs:*)",
+      "Bash(cp:*)"
     ],
     "deny": [],
     "ask": []
