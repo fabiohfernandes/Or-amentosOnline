@@ -1,0 +1,127 @@
+version: '3.8'
+
+# OrçamentosOnline - Development Environment Override
+# CRONOS Agent - Development-Specific Configuration
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.dev.yml up
+# Date: September 25, 2025
+
+services:
+  # ============================================================================
+  # API SERVICE - DEVELOPMENT OVERRIDES
+  # ============================================================================
+  api:
+    build:
+      target: development
+    environment:
+      - NODE_ENV=development
+      - LOG_LEVEL=debug
+      - API_DOCS_ENABLED=true
+      - SWAGGER_UI_ENABLED=true
+    volumes:
+      # Enable hot reload for development
+      - ./services/api:/app
+      - /app/node_modules
+    ports:
+      # Expose debugger port
+      - "9229:9229"
+    command: npm run dev
+
+  # ============================================================================
+  # FRONTEND SERVICE - DEVELOPMENT OVERRIDES
+  # ============================================================================
+  frontend:
+    build:
+      target: development
+    environment:
+      - NODE_ENV=development
+      - CHOKIDAR_USEPOLLING=true
+      - FAST_REFRESH=true
+    volumes:
+      # Enable hot reload for development
+      - ./services/frontend:/app
+      - /app/node_modules
+    command: npm run dev
+
+  # ============================================================================
+  # POSTGRES - DEVELOPMENT OVERRIDES
+  # ============================================================================
+  postgres:
+    environment:
+      - POSTGRES_DB=orcamentos_dev
+    volumes:
+      # Mount development SQL scripts
+      - ./services/database/dev-data:/docker-entrypoint-initdb.d/dev-data
+    ports:
+      # Expose port for external tools
+      - "5432:5432"
+
+  # ============================================================================
+  # REDIS - DEVELOPMENT OVERRIDES
+  # ============================================================================
+  redis:
+    ports:
+      # Expose port for external tools
+      - "6379:6379"
+    command: redis-server /usr/local/etc/redis/redis.conf --requirepass ${REDIS_PASSWORD} --loglevel debug
+
+  # ============================================================================
+  # NGINX - DEVELOPMENT OVERRIDES
+  # ============================================================================
+  nginx:
+    volumes:
+      # Mount development-specific nginx config
+      - ./infrastructure/nginx/nginx.dev.conf:/etc/nginx/nginx.conf:ro
+      - ./infrastructure/nginx/conf.d/dev.conf:/etc/nginx/conf.d/default.conf:ro
+
+  # ============================================================================
+  # DEVELOPMENT TOOLS (AUTOMATICALLY ENABLED)
+  # ============================================================================
+  adminer:
+    profiles: []  # Remove profile restriction for development
+
+  redis-commander:
+    profiles: []  # Remove profile restriction for development
+
+  # ============================================================================
+  # HOT RELOAD SUPPORT SERVICE
+  # ============================================================================
+  # File watcher for automatic container rebuilding
+  file-watcher:
+    image: dockersamples/visualizer:stable
+    container_name: orcamentos-file-watcher
+    profiles:
+      - debug
+    ports:
+      - "8082:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - orcamentos-network
+
+  # ============================================================================
+  # DEVELOPMENT MAIL SERVER (MAILHOG)
+  # ============================================================================
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: orcamentos-mailhog
+    restart: unless-stopped
+    ports:
+      - "1025:1025"  # SMTP server
+      - "8025:8025"  # Web interface
+    networks:
+      orcamentos-network:
+        ipv4_address: 172.20.0.70
+    profiles:
+      - mail-testing
+
+# ============================================================================
+# DEVELOPMENT-SPECIFIC VOLUMES
+# ============================================================================
+volumes:
+  # Separate development database
+  postgres_dev_data:
+    driver: local
+
+  # Development-specific logs
+  dev_logs:
+    driver: local

@@ -1,0 +1,1278 @@
+openapi: 3.0.3
+info:
+  title: OrçamentosOnline API
+  description: AI-Driven Commercial Proposal Platform REST API
+  version: 1.0.0
+  contact:
+    name: Fabio Hartmann Fernandes
+    email: fabio@metamentes.com
+  license:
+    name: Proprietary
+servers:
+  - url: https://api.infigital.net/v1
+    description: Production server
+  - url: https://staging-api.infigital.net/v1
+    description: Staging server
+  - url: http://localhost:3000/api/v1
+    description: Development server
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token obtained from /auth/login endpoint
+
+  schemas:
+    Organization:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        slug:
+          type: string
+          pattern: '^[a-z0-9-]+$'
+          example: 'acme-corp'
+        name:
+          type: string
+          maxLength: 255
+        domain:
+          type: string
+          format: hostname
+          nullable: true
+        settings:
+          type: object
+        subscription_tier:
+          type: string
+          enum: [basic, professional, enterprise]
+        subscription_status:
+          type: string
+          enum: [active, suspended, cancelled]
+        max_users:
+          type: integer
+        max_proposals:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      required:
+        - slug
+        - name
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        organization_id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        first_name:
+          type: string
+          maxLength: 100
+        last_name:
+          type: string
+          maxLength: 100
+        role:
+          type: string
+          enum: [owner, admin, manager, member]
+        avatar_url:
+          type: string
+          format: uri
+          nullable: true
+        preferences:
+          type: object
+        email_verified:
+          type: boolean
+        last_login_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      required:
+        - email
+        - first_name
+        - last_name
+
+    Client:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        organization_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          maxLength: 255
+        email:
+          type: string
+          format: email
+          nullable: true
+        phone:
+          type: string
+          maxLength: 50
+          nullable: true
+        company:
+          type: string
+          maxLength: 255
+          nullable: true
+        address:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        created_by:
+          type: string
+          format: uuid
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      required:
+        - name
+
+    Proposal:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        organization_id:
+          type: string
+          format: uuid
+        client_id:
+          type: string
+          format: uuid
+          nullable: true
+        created_by:
+          type: string
+          format: uuid
+        title:
+          type: string
+          maxLength: 255
+        description:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [draft, sent, viewed, approved, rejected, signed, expired]
+        content:
+          type: object
+          description: Proposal content structure
+        design_settings:
+          type: object
+          description: Visual customization settings
+        total_amount:
+          type: number
+          format: decimal
+          nullable: true
+        currency:
+          type: string
+          enum: [BRL, USD, EUR]
+          default: BRL
+        valid_until:
+          type: string
+          format: date
+          nullable: true
+        expected_start_date:
+          type: string
+          format: date
+          nullable: true
+        expected_end_date:
+          type: string
+          format: date
+          nullable: true
+        approved_at:
+          type: string
+          format: date-time
+          nullable: true
+        approved_by:
+          type: string
+          format: uuid
+          nullable: true
+        signed_at:
+          type: string
+          format: date-time
+          nullable: true
+        signature_data:
+          type: object
+          nullable: true
+        public_token:
+          type: string
+          format: uuid
+        password_protected:
+          type: boolean
+          default: false
+        view_count:
+          type: integer
+          default: 0
+        last_viewed_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      required:
+        - title
+
+    ProposalSection:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        proposal_id:
+          type: string
+          format: uuid
+        title:
+          type: string
+          maxLength: 255
+        description:
+          type: string
+          nullable: true
+        section_type:
+          type: string
+          maxLength: 50
+          default: content
+        order_index:
+          type: integer
+          default: 0
+        content:
+          type: object
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      required:
+        - title
+
+    ProposalItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        section_id:
+          type: string
+          format: uuid
+        title:
+          type: string
+          maxLength: 255
+        description:
+          type: string
+          nullable: true
+        quantity:
+          type: number
+          format: decimal
+          default: 1
+        unit_price:
+          type: number
+          format: decimal
+          nullable: true
+        total_price:
+          type: number
+          format: decimal
+          nullable: true
+        order_index:
+          type: integer
+          default: 0
+        metadata:
+          type: object
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      required:
+        - title
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+        details:
+          type: object
+          nullable: true
+        timestamp:
+          type: string
+          format: date-time
+      required:
+        - error
+        - message
+        - timestamp
+
+    LoginRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+      required:
+        - email
+        - password
+
+    LoginResponse:
+      type: object
+      properties:
+        access_token:
+          type: string
+        refresh_token:
+          type: string
+        expires_in:
+          type: integer
+          description: Token expiration time in seconds
+        user:
+          $ref: '#/components/schemas/User'
+      required:
+        - access_token
+        - refresh_token
+        - expires_in
+        - user
+
+    RefreshRequest:
+      type: object
+      properties:
+        refresh_token:
+          type: string
+      required:
+        - refresh_token
+
+    PaginatedResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items: {}
+        pagination:
+          type: object
+          properties:
+            page:
+              type: integer
+              minimum: 1
+            limit:
+              type: integer
+              minimum: 1
+              maximum: 100
+            total:
+              type: integer
+            total_pages:
+              type: integer
+          required:
+            - page
+            - limit
+            - total
+            - total_pages
+      required:
+        - data
+        - pagination
+
+security:
+  - bearerAuth: []
+
+paths:
+  # ============================================================================
+  # AUTHENTICATION ENDPOINTS
+  # ============================================================================
+  /auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: User login
+      description: Authenticate user and return JWT tokens
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Too many login attempts
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/refresh:
+    post:
+      tags:
+        - Authentication
+      summary: Refresh access token
+      description: Get new access token using refresh token
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshRequest'
+      responses:
+        '200':
+          description: Token refreshed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '401':
+          description: Invalid refresh token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/logout:
+    post:
+      tags:
+        - Authentication
+      summary: User logout
+      description: Invalidate current session and tokens
+      responses:
+        '200':
+          description: Logout successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Logout successful"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/me:
+    get:
+      tags:
+        - Authentication
+      summary: Get current user
+      description: Get current authenticated user information
+      responses:
+        '200':
+          description: User information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ============================================================================
+  # ORGANIZATION ENDPOINTS
+  # ============================================================================
+  /organizations:
+    get:
+      tags:
+        - Organizations
+      summary: Get current organization
+      description: Get organization information for authenticated user
+      responses:
+        '200':
+          description: Organization information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Organization'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    patch:
+      tags:
+        - Organizations
+      summary: Update organization
+      description: Update organization settings (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  maxLength: 255
+                domain:
+                  type: string
+                  format: hostname
+                settings:
+                  type: object
+      responses:
+        '200':
+          description: Organization updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Organization'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ============================================================================
+  # USER ENDPOINTS
+  # ============================================================================
+  /users:
+    get:
+      tags:
+        - Users
+      summary: List organization users
+      description: Get paginated list of users in organization
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: role
+          in: query
+          schema:
+            type: string
+            enum: [owner, admin, manager, member]
+      responses:
+        '200':
+          description: Users list
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/User'
+
+    post:
+      tags:
+        - Users
+      summary: Create user
+      description: Create new user in organization (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+                first_name:
+                  type: string
+                  maxLength: 100
+                last_name:
+                  type: string
+                  maxLength: 100
+                role:
+                  type: string
+                  enum: [admin, manager, member]
+                  default: member
+              required:
+                - email
+                - first_name
+                - last_name
+      responses:
+        '201':
+          description: User created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: User already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /users/{user_id}:
+    get:
+      tags:
+        - Users
+      summary: Get user by ID
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: User information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    patch:
+      tags:
+        - Users
+      summary: Update user
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                first_name:
+                  type: string
+                  maxLength: 100
+                last_name:
+                  type: string
+                  maxLength: 100
+                role:
+                  type: string
+                  enum: [admin, manager, member]
+                avatar_url:
+                  type: string
+                  format: uri
+                preferences:
+                  type: object
+      responses:
+        '200':
+          description: User updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      tags:
+        - Users
+      summary: Delete user
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: User deleted
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ============================================================================
+  # CLIENT ENDPOINTS
+  # ============================================================================
+  /clients:
+    get:
+      tags:
+        - Clients
+      summary: List clients
+      description: Get paginated list of clients
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: search
+          in: query
+          description: Search by name, email, or company
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Clients list
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Client'
+
+    post:
+      tags:
+        - Clients
+      summary: Create client
+      description: Create new client
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  maxLength: 255
+                email:
+                  type: string
+                  format: email
+                phone:
+                  type: string
+                  maxLength: 50
+                company:
+                  type: string
+                  maxLength: 255
+                address:
+                  type: string
+                notes:
+                  type: string
+              required:
+                - name
+      responses:
+        '201':
+          description: Client created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Client'
+
+  /clients/{client_id}:
+    get:
+      tags:
+        - Clients
+      summary: Get client by ID
+      parameters:
+        - name: client_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Client information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Client'
+        '404':
+          description: Client not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    patch:
+      tags:
+        - Clients
+      summary: Update client
+      parameters:
+        - name: client_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  maxLength: 255
+                email:
+                  type: string
+                  format: email
+                phone:
+                  type: string
+                  maxLength: 50
+                company:
+                  type: string
+                  maxLength: 255
+                address:
+                  type: string
+                notes:
+                  type: string
+      responses:
+        '200':
+          description: Client updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Client'
+
+    delete:
+      tags:
+        - Clients
+      summary: Delete client
+      parameters:
+        - name: client_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Client deleted
+        '404':
+          description: Client not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ============================================================================
+  # PROPOSAL ENDPOINTS
+  # ============================================================================
+  /proposals:
+    get:
+      tags:
+        - Proposals
+      summary: List proposals
+      description: Get paginated list of proposals
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [draft, sent, viewed, approved, rejected, signed, expired]
+        - name: client_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: search
+          in: query
+          description: Search by title or description
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Proposals list
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Proposal'
+
+    post:
+      tags:
+        - Proposals
+      summary: Create proposal
+      description: Create new proposal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                  maxLength: 255
+                description:
+                  type: string
+                client_id:
+                  type: string
+                  format: uuid
+                content:
+                  type: object
+                design_settings:
+                  type: object
+                total_amount:
+                  type: number
+                  format: decimal
+                currency:
+                  type: string
+                  enum: [BRL, USD, EUR]
+                  default: BRL
+                valid_until:
+                  type: string
+                  format: date
+                password_protected:
+                  type: boolean
+                  default: false
+                access_password:
+                  type: string
+              required:
+                - title
+      responses:
+        '201':
+          description: Proposal created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Proposal'
+
+  /proposals/{proposal_id}:
+    get:
+      tags:
+        - Proposals
+      summary: Get proposal by ID
+      parameters:
+        - name: proposal_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Proposal information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Proposal'
+        '404':
+          description: Proposal not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    patch:
+      tags:
+        - Proposals
+      summary: Update proposal
+      parameters:
+        - name: proposal_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                  maxLength: 255
+                description:
+                  type: string
+                client_id:
+                  type: string
+                  format: uuid
+                status:
+                  type: string
+                  enum: [draft, sent, viewed, approved, rejected, signed, expired]
+                content:
+                  type: object
+                design_settings:
+                  type: object
+                total_amount:
+                  type: number
+                  format: decimal
+                valid_until:
+                  type: string
+                  format: date
+                password_protected:
+                  type: boolean
+                access_password:
+                  type: string
+      responses:
+        '200':
+          description: Proposal updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Proposal'
+
+    delete:
+      tags:
+        - Proposals
+      summary: Delete proposal
+      parameters:
+        - name: proposal_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Proposal deleted
+        '404':
+          description: Proposal not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ============================================================================
+  # PUBLIC PROPOSAL ACCESS
+  # ============================================================================
+  /public/proposals/{public_token}:
+    get:
+      tags:
+        - Public Access
+      summary: Get proposal by public token
+      description: Public access to proposals (for clients)
+      security: []
+      parameters:
+        - name: public_token
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: password
+          in: query
+          description: Required if proposal is password protected
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Proposal information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Proposal'
+        '401':
+          description: Password required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Proposal not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /public/proposals/{public_token}/approve:
+    post:
+      tags:
+        - Public Access
+      summary: Approve proposal
+      description: Client approval of proposal
+      security: []
+      parameters:
+        - name: public_token
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                password:
+                  type: string
+                  description: Required if proposal is password protected
+                signature_data:
+                  type: object
+                  description: Digital signature information
+      responses:
+        '200':
+          description: Proposal approved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  proposal:
+                    $ref: '#/components/schemas/Proposal'
+
+  # ============================================================================
+  # HEALTH AND STATUS
+  # ============================================================================
+  /health:
+    get:
+      tags:
+        - System
+      summary: Health check
+      description: System health status
+      security: []
+      responses:
+        '200':
+          description: System is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: 'healthy'
+                  timestamp:
+                    type: string
+                    format: date-time
+                  version:
+                    type: string
+                    example: '1.0.0'
+                  database:
+                    type: string
+                    enum: [connected, disconnected]
+                  redis:
+                    type: string
+                    enum: [connected, disconnected]
+
+tags:
+  - name: Authentication
+    description: User authentication and session management
+  - name: Organizations
+    description: Organization settings and management
+  - name: Users
+    description: User management within organizations
+  - name: Clients
+    description: Client contact management
+  - name: Proposals
+    description: Proposal creation and management
+  - name: Public Access
+    description: Public endpoints for client access
+  - name: System
+    description: System health and monitoring
