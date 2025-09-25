@@ -25,7 +25,7 @@ COPY package.json package-lock.json* ./
 FROM base AS deps
 
 # Install dependencies
-RUN npm ci --only=production --ignore-scripts && npm cache clean --force
+RUN npm install --only=production --ignore-scripts && npm cache clean --force
 
 # ============================================================================
 # Development stage
@@ -33,7 +33,7 @@ RUN npm ci --only=production --ignore-scripts && npm cache clean --force
 FROM base AS development
 
 # Install all dependencies (including dev dependencies)
-RUN npm ci --ignore-scripts
+RUN npm install --ignore-scripts
 
 # Copy source code
 COPY . .
@@ -64,7 +64,7 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
 # Install dev dependencies needed for build
-RUN npm ci --ignore-scripts
+RUN npm install --ignore-scripts
 
 # Set build environment
 ENV NODE_ENV=production

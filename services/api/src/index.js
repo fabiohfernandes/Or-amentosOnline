@@ -78,7 +78,11 @@ app.use(helmet({
 
 // CORS configuration
 const corsOptions = {
-  origin: process.env.CORS_ORIGIN || 'http://localhost:3001',
+  origin: [
+    'http://localhost:3001',
+    'http://127.0.0.1:3001',
+    process.env.CORS_ORIGIN
+  ].filter(Boolean),
   credentials: true,
   optionsSuccessStatus: 200,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
@@ -245,6 +249,146 @@ app.post('/api/v1/auth/login', async (req, res) => {
   }
 });
 
+// User registration endpoint
+app.post('/api/v1/auth/register', async (req, res) => {
+  try {
+    const { name, email, phone, password } = req.body;
+
+    // Validation
+    if (!name || !email || !phone || !password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: ['Name, email, phone, and password are required']
+      });
+    }
+
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: ['Invalid email format']
+      });
+    }
+
+    // Phone validation (Brazilian format)
+    const phoneRegex = /^\(\d{2}\)\s9\d{4}-\d{4}$/;
+    if (!phoneRegex.test(phone)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: ['Invalid phone format. Use (XX) 9XXXX-XXXX']
+      });
+    }
+
+    // Password validation
+    if (password.length < 8) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: ['Password must be at least 8 characters long']
+      });
+    }
+
+    // Check for password complexity
+    const hasUpperCase = /[A-Z]/.test(password);
+    const hasLowerCase = /[a-z]/.test(password);
+    const hasNumbers = /\d/.test(password);
+
+    if (!hasUpperCase || !hasLowerCase || !hasNumbers) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: ['Password must contain at least one uppercase letter, one lowercase letter, and one number']
+      });
+    }
+
+    // Check if user already exists
+    const existingUser = await pool.query(
+      'SELECT id FROM users WHERE email = $1',
+      [email.toLowerCase()]
+    );
+
+    if (existingUser.rows.length > 0) {
+      return res.status(409).json({
+        success: false,
+        message: 'Registration failed',
+        errors: ['User with this email already exists']
+      });
+    }
+
+    // Hash password
+    const saltRounds = parseInt(process.env.BCRYPT_ROUNDS) || 12;
+    const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+    // Create user in database
+    const newUser = await pool.query(
+      `INSERT INTO users (name, email, phone, password_hash, role, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
+       RETURNING id, name, email, phone, role, created_at`,
+      [name.trim(), email.toLowerCase(), phone, hashedPassword, 'user']
+    );
+
+    const user = newUser.rows[0];
+
+    // Generate JWT tokens
+    const token = jwt.sign(
+      { userId: user.id, email: user.email, role: user.role },
+      process.env.JWT_SECRET || 'fallback_secret',
+      { expiresIn: process.env.JWT_EXPIRES_IN || '15m' }
+    );
+
+    const refreshToken = jwt.sign(
+      { userId: user.id, type: 'refresh' },
+      process.env.JWT_REFRESH_SECRET || 'fallback_refresh_secret',
+      { expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d' }
+    );
+
+    logger.info(`New user registered: ${email}`);
+
+    res.status(201).json({
+      success: true,
+      message: 'Registration successful',
+      data: {
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          phone: user.phone,
+          role: user.role,
+          createdAt: user.created_at
+        },
+        tokens: {
+          accessToken: token,
+          refreshToken: refreshToken,
+          expiresAt: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
+          expiresIn: 900
+        }
+      }
+    });
+
+  } catch (error) {
+    logger.error('Registration error:', error);
+
+    // Handle specific database errors
+    if (error.code === '23505') { // PostgreSQL unique violation
+      return res.status(409).json({
+        success: false,
+        message: 'Registration failed',
+        errors: ['User with this email already exists']
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: 'Registration failed',
+      errors: ['Internal server error']
+    });
+  }
+});
+
 // Protected route example - GET /api/v1/auth/profile (matching frontend config)
 app.get('/api/v1/auth/profile', authenticateToken, (req, res) => {
   res.json({
@@ -314,13 +458,12 @@ app.get('/api/v1', (req, res) => {
     endpoints: {
       health: 'GET /api/v1/health',
       auth: {
-        login: 'POST /api/v1/auth/login'
+        login: 'POST /api/v1/auth/login',
+        register: 'POST /api/v1/auth/register',
+        profile: 'GET /api/v1/auth/profile'
       },
-      user: {
-        profile: 'GET /api/v1/user/profile'
-      },
-      budgets: {
-        list: 'GET /api/v1/budgets'
+      proposals: {
+        list: 'GET /api/v1/proposals'
       }
     },
     demo_credentials: {

@@ -23,7 +23,7 @@ CMD ["npm", "run", "dev"]
 
 # Production dependencies stage
 FROM base AS deps
-RUN npm ci --only=production && npm cache clean --force
+RUN npm install --only=production && npm cache clean --force
 
 # Production stage
 FROM node:18-alpine AS production

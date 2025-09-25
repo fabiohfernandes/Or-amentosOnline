@@ -108,15 +108,6 @@ export default function RootLayout({ children }: RootLayoutProps) {
       suppressHydrationWarning
     >
       <head>
-        {/* Preload critical fonts */}
-        <link
-          rel="preload"
-          href="/fonts/inter-var.woff2"
-          as="font"
-          type="font/woff2"
-          crossOrigin="anonymous"
-        />
-
         {/* PWA meta tags */}
         <meta name="application-name" content={appConfig.appName} />
         <meta name="apple-mobile-web-app-capable" content="yes" />
