@@ -32,13 +32,20 @@ export default function ProposalViewerPage() {
   const [loading, setLoading] = useState(true);
   const [comment, setComment] = useState('');
   const [savingComment, setSavingComment] = useState(false);
+  const [zoomLevel, setZoomLevel] = useState(1.3);
 
   // Load proposal data
   useEffect(() => {
     const loadProposal = async () => {
       const token = localStorage.getItem('client_token');
       if (!token) {
-        window.location.href = '/client-login';
+        // Check if proposalId is a UUID (public token) or number (proposal ID)
+        const isPublicToken = proposalId.includes('-') && proposalId.length > 10;
+        if (isPublicToken) {
+          window.location.href = `/client-login?token=${proposalId}`;
+        } else {
+          window.location.href = '/client-login';
+        }
         return;
       }
 
@@ -204,11 +211,22 @@ export default function ProposalViewerPage() {
             {proposal.presentation_url ? (
               <iframe
                 src={proposal.presentation_url}
-                className="proposal-iframe"
-                sandbox="allow-scripts allow-same-origin allow-forms"
+                style={{
+                  width: `${100 * zoomLevel}%`,
+                  height: `${100 * zoomLevel}%`,
+                  minWidth: `${100 * zoomLevel}vw`,
+                  minHeight: `calc((100vh - 130px) * ${zoomLevel})`,
+                  border: 'none',
+                  display: 'block',
+                  background: 'white',
+                  transformOrigin: 'top left'
+                }}
+                sandbox="allow-scripts allow-same-origin allow-forms allow-top-navigation allow-popups allow-downloads"
                 referrerPolicy="no-referrer"
-                loading="lazy"
+                loading="eager"
                 title="Apresentação do Projeto"
+                frameBorder="0"
+                allowFullScreen
               />
             ) : (
               <div className="flex items-center justify-center h-full bg-gray-100">
@@ -225,11 +243,22 @@ export default function ProposalViewerPage() {
             {proposal.commercial_proposal_url ? (
               <iframe
                 src={proposal.commercial_proposal_url}
-                className="proposal-iframe"
-                sandbox="allow-scripts allow-same-origin allow-forms"
+                style={{
+                  width: `${100 * zoomLevel}%`,
+                  height: `${100 * zoomLevel}%`,
+                  minWidth: `${100 * zoomLevel}vw`,
+                  minHeight: `calc((100vh - 130px) * ${zoomLevel})`,
+                  border: 'none',
+                  display: 'block',
+                  background: 'white',
+                  transformOrigin: 'top left'
+                }}
+                sandbox="allow-scripts allow-same-origin allow-forms allow-top-navigation allow-popups allow-downloads"
                 referrerPolicy="no-referrer"
-                loading="lazy"
+                loading="eager"
                 title="Proposta Comercial"
+                frameBorder="0"
+                allowFullScreen
               />
             ) : (
               <div className="flex items-center justify-center h-full bg-gray-100">
@@ -378,6 +407,47 @@ export default function ProposalViewerPage() {
             </div>
 
             <div className="flex items-center space-x-2">
+              {/* Zoom controls for iframe pages */}
+              {currentPage <= 2 && (
+                <div className="flex items-center space-x-1 mr-4">
+                  <button
+                    onClick={() => {
+                      const newZoom = Math.max(0.5, zoomLevel - 0.1);
+                      console.log('Zoom decreasing to:', newZoom);
+                      setZoomLevel(newZoom);
+                    }}
+                    className="px-2 py-1 rounded text-xs bg-gray-100 hover:bg-gray-200"
+                    title="Diminuir zoom"
+                  >
+                    −
+                  </button>
+                  <span className="text-xs text-gray-600 px-2">
+                    {Math.round(zoomLevel * 100)}%
+                  </span>
+                  <button
+                    onClick={() => {
+                      const newZoom = Math.min(3.0, zoomLevel + 0.1);
+                      console.log('Zoom increasing to:', newZoom);
+                      setZoomLevel(newZoom);
+                    }}
+                    className="px-2 py-1 rounded text-xs bg-gray-100 hover:bg-gray-200"
+                    title="Aumentar zoom"
+                  >
+                    +
+                  </button>
+                  <button
+                    onClick={() => {
+                      console.log('Resetting zoom to 1.3');
+                      setZoomLevel(1.3);
+                    }}
+                    className="px-2 py-1 rounded text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 ml-2"
+                    title="Reset zoom"
+                  >
+                    Reset
+                  </button>
+                </div>
+              )}
+
               <button
                 onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
                 disabled={currentPage === 1}
@@ -399,28 +469,46 @@ export default function ProposalViewerPage() {
       </div>
 
       {/* Page Content */}
-      <div className={currentPage <= 2 ? '' : 'min-h-screen'}>
+      <div className={currentPage <= 2 ? 'iframe-page-container' : 'min-h-screen'}>
         {renderCurrentPage()}
       </div>
 
       <style jsx>{`
+        .iframe-page-container {
+          position: fixed;
+          top: 130px;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          width: 100vw;
+          height: calc(100vh - 130px);
+          overflow: hidden;
+          z-index: 1;
+        }
+
         .iframe-container {
           position: relative;
           width: 100%;
-          height: calc(100vh - 120px);
-          overflow: hidden;
-        }
-
-        .proposal-iframe {
-          width: 100%;
           height: 100%;
-          border: none;
-          display: block;
-          background: white;
+          overflow: auto;
+          background: #f8f9fa;
         }
 
         .iframe-container::-webkit-scrollbar {
-          display: none;
+          width: 8px;
+        }
+
+        .iframe-container::-webkit-scrollbar-track {
+          background: #f1f1f1;
+        }
+
+        .iframe-container::-webkit-scrollbar-thumb {
+          background: #888;
+          border-radius: 4px;
+        }
+
+        .iframe-container::-webkit-scrollbar-thumb:hover {
+          background: #555;
         }
       `}</style>
     </div>

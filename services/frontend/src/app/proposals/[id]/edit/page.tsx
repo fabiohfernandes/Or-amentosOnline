@@ -26,6 +26,7 @@ interface ProposalData {
   scope_text?: string;
   terms_text?: string;
   client_username: string;
+  client_password_display?: string;
   status: string;
   proposal_value: number;
   created_at: string;
@@ -106,7 +107,7 @@ export default function EditProposal() {
             scopeText: proposalData.scope_text || '',
             termsText: proposalData.terms_text || '',
             clientUsername: proposalData.client_username || '',
-            clientPassword: '', // Password is not returned for security
+            clientPassword: proposalData.client_password_display || '',
             proposalValue: proposalData.proposal_value?.toString() || ''
           });
         } else {

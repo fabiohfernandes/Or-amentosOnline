@@ -66,6 +66,7 @@ export default function CreateProposal() {
 
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [createdProposal, setCreatedProposal] = useState<any>(null);
 
   // Template texts
   const defaultScopeTemplate = `**Escopo do Projeto:**
@@ -224,7 +225,8 @@ export default function CreateProposal() {
 
       if (data.success) {
         toast.success('Proposta criada com sucesso!');
-        router.push('/dashboard');
+        setCreatedProposal(data.data.proposal);
+        // Don't redirect immediately, show success screen first
       } else {
         if (data.errors) {
           data.errors.forEach((error: string) => toast.error(error));
@@ -243,6 +245,138 @@ export default function CreateProposal() {
   if (!user) {
     router.push('/auth/login');
     return null;
+  }
+
+  // Show success screen after proposal creation
+  if (createdProposal) {
+    return (
+      <div className="min-h-screen bg-gray-50 py-8">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="bg-white shadow rounded-lg">
+            <div className="px-6 py-4 border-b border-gray-200 bg-green-50">
+              <h1 className="text-2xl font-bold text-green-900 flex items-center">
+                <CheckCircleIcon className="h-7 w-7 text-green-600 mr-3" />
+                Proposta Criada com Sucesso!
+              </h1>
+              <p className="mt-1 text-sm text-green-700">
+                Sua proposta foi criada e está pronta para ser enviada ao cliente
+              </p>
+            </div>
+
+            <div className="p-6 space-y-6">
+              {/* Proposal Details */}
+              <div className="bg-gray-50 rounded-lg p-6">
+                <h2 className="text-lg font-semibold text-gray-900 mb-4">Detalhes da Proposta</h2>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div>
+                    <dt className="text-sm font-medium text-gray-500">Nome da Proposta</dt>
+                    <dd className="mt-1 text-sm text-gray-900">{createdProposal.proposal_name}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-sm font-medium text-gray-500">Cliente</dt>
+                    <dd className="mt-1 text-sm text-gray-900">{createdProposal.client_name}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-sm font-medium text-gray-500">Valor</dt>
+                    <dd className="mt-1 text-sm text-gray-900">
+                      {new Intl.NumberFormat('pt-BR', {
+                        style: 'currency',
+                        currency: 'BRL'
+                      }).format(createdProposal.proposal_value)}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-sm font-medium text-gray-500">Status</dt>
+                    <dd className="mt-1">
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                        Aberta
+                      </span>
+                    </dd>
+                  </div>
+                </div>
+              </div>
+
+              {/* Client Access Information */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+                <h2 className="text-lg font-semibold text-blue-900 mb-4 flex items-center">
+                  <LockClosedIcon className="h-5 w-5 mr-2" />
+                  Acesso do Cliente
+                </h2>
+                <div className="space-y-4">
+                  <div>
+                    <dt className="text-sm font-medium text-blue-700">Link de Acesso</dt>
+                    <dd className="mt-1">
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="text"
+                          value={createdProposal.clientAccessUrl}
+                          readOnly
+                          className="flex-1 text-sm bg-white border border-blue-300 rounded px-3 py-2"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            navigator.clipboard.writeText(createdProposal.clientAccessUrl);
+                            toast.success('Link copiado!');
+                          }}
+                          className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded text-sm"
+                        >
+                          Copiar
+                        </button>
+                      </div>
+                    </dd>
+                  </div>
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div>
+                      <dt className="text-sm font-medium text-blue-700">Usuário</dt>
+                      <dd className="mt-1 text-sm bg-white border border-blue-300 rounded px-3 py-2">
+                        {createdProposal.client_username}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-sm font-medium text-blue-700">Senha</dt>
+                      <dd className="mt-1 text-sm bg-white border border-blue-300 rounded px-3 py-2">
+                        {formData.clientPassword}
+                      </dd>
+                    </div>
+                  </div>
+                  <p className="text-xs text-blue-600">
+                    💡 Envie essas credenciais para o cliente acessar a proposta online
+                  </p>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex items-center justify-between border-t pt-6">
+                <button
+                  type="button"
+                  onClick={() => setCreatedProposal(null)}
+                  className="text-gray-600 hover:text-gray-900 text-sm font-medium"
+                >
+                  Criar Outra Proposta
+                </button>
+                <div className="flex items-center space-x-3">
+                  <button
+                    type="button"
+                    onClick={() => router.push('/proposals')}
+                    className="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-md text-sm font-medium"
+                  >
+                    Ver Todas as Propostas
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => router.push(`/proposals/${createdProposal.id}/edit`)}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium"
+                  >
+                    Editar Proposta
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (

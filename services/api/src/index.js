@@ -447,6 +447,21 @@ app.get('/api/v1/auth/profile', authenticateToken, (req, res) => {
   });
 });
 
+// Logout endpoint - POST /api/v1/auth/logout
+app.post('/api/v1/auth/logout', authenticateToken, (req, res) => {
+  // For stateless JWT tokens, logout is handled client-side by removing the token
+  // In a production environment, you might want to:
+  // 1. Add the token to a blacklist stored in Redis
+  // 2. Log the logout event for security auditing
+
+  logger.info(`User logged out: ${req.user.email} (ID: ${req.user.userId})`);
+
+  res.json({
+    success: true,
+    message: 'Logout successful'
+  });
+});
+
 // Refresh token endpoint
 app.post('/api/v1/auth/refresh', async (req, res) => {
   try {
@@ -1047,6 +1062,7 @@ app.get('/api/v1', (req, res) => {
       auth: {
         login: 'POST /api/v1/auth/login',
         register: 'POST /api/v1/auth/register',
+        logout: 'POST /api/v1/auth/logout',
         profile: 'GET /api/v1/auth/profile'
       },
       proposals: {

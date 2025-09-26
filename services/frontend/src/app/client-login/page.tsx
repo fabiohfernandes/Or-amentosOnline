@@ -1,11 +1,14 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'react-hot-toast';
 
 export default function ClientLoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const publicToken = searchParams.get('token');
+
   const [formData, setFormData] = useState({
     username: '',
     password: ''
@@ -23,7 +26,12 @@ export default function ClientLoginPage() {
     setLoading(true);
 
     try {
-      const response = await fetch('/api/v1/client/login', {
+      // Use token-specific login endpoint if public token is provided
+      const loginEndpoint = publicToken
+        ? `/api/v1/client/login/${publicToken}`
+        : '/api/v1/client/login';
+
+      const response = await fetch(loginEndpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -38,8 +46,11 @@ export default function ClientLoginPage() {
         localStorage.setItem('client_token', data.data.token);
         localStorage.setItem('proposal_id', data.data.proposalId);
 
-        // Redirect to proposal viewer
-        router.push(`/proposal/${data.data.proposalId}`);
+        // Redirect to proposal viewer using public token if available, otherwise proposal ID
+        const redirectPath = publicToken
+          ? `/proposal/${publicToken}`
+          : `/proposal/${data.data.proposalId}`;
+        router.push(redirectPath);
         toast.success('Login realizado com sucesso!');
       } else {
         toast.error(data.message || 'Credenciais inválidas');

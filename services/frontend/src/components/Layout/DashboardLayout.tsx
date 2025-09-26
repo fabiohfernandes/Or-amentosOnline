@@ -9,6 +9,7 @@
 import { ReactNode, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import { useAuthStore } from '@/store/auth';
 import {
   Bars3Icon,
   XMarkIcon,
@@ -40,10 +41,10 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
+  const { logout, user } = useAuthStore();
 
   const handleLogout = () => {
-    // In a real app, this would handle token cleanup
-    localStorage.removeItem('auth-token');
+    logout();
     router.push('/auth/login');
   };
 
@@ -98,8 +99,8 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                 <UserCircleIcon className="h-6 w-6 text-primary-600" />
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-900">João Silva</p>
-                <p className="text-xs text-secondary-500">joao@empresa.com</p>
+                <p className="text-sm font-medium text-gray-900">{user?.name || 'Usuário'}</p>
+                <p className="text-xs text-secondary-500">{user?.email || 'email@example.com'}</p>
               </div>
             </div>
             <button
@@ -205,9 +206,16 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                   <UserCircleIcon className="h-5 w-5 text-primary-600" />
                 </div>
                 <div className="hidden xl:block">
-                  <p className="text-sm font-medium text-gray-900">João Silva</p>
-                  <p className="text-xs text-secondary-500">joao@empresa.com</p>
+                  <p className="text-sm font-medium text-gray-900">{user?.name || 'Usuário'}</p>
+                  <p className="text-xs text-secondary-500">{user?.email || 'email@example.com'}</p>
                 </div>
+                <button
+                  onClick={handleLogout}
+                  className="p-2 text-secondary-500 hover:text-danger-600 transition-colors"
+                  title="Sair"
+                >
+                  <ArrowRightOnRectangleIcon className="h-5 w-5" />
+                </button>
               </div>
             </div>
           </div>

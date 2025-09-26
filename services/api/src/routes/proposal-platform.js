@@ -143,7 +143,9 @@ router.get('/proposals', authenticateUser, async (req, res) => {
         created_at,
         updated_at,
         closed_at,
-        public_token
+        public_token,
+        client_username,
+        client_password_display
       FROM proposals
       WHERE user_id = $1
     `;
@@ -261,9 +263,15 @@ router.post('/proposals', authenticateUser, async (req, res) => {
       });
     }
 
-    // Hash client password
+    // Hash client password for authentication
     const saltRounds = 10;
     const hashedPassword = await bcrypt.hash(clientPassword, saltRounds);
+
+    // Store plain password for display purposes (in real-world, this should be encrypted)
+    const displayPassword = clientPassword;
+
+    // Generate unique public token for client access
+    const publicToken = uuidv4();
 
     // Use user_id directly (no organization structure in simplified schema)
     const userId = req.user.userId;
@@ -281,11 +289,13 @@ router.post('/proposals', authenticateUser, async (req, res) => {
         terms_text,
         client_username,
         client_password_hash,
+        client_password_display,
         proposal_value,
         status,
+        public_token,
         created_at,
         updated_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW(), NOW())
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, NOW(), NOW())
       RETURNING *`,
       [
         req.user.userId,
@@ -298,8 +308,10 @@ router.post('/proposals', authenticateUser, async (req, res) => {
         termsText.trim(),
         clientUsername.trim(),
         hashedPassword,
+        displayPassword,
         proposalValue || 0,
-        'open'
+        'open',
+        publicToken
       ]
     );
 
@@ -344,6 +356,7 @@ router.get('/proposals/:id', authenticateUser, async (req, res) => {
         scope_text,
         terms_text,
         client_username,
+        client_password_display,
         status,
         proposal_value,
         created_at,
@@ -393,34 +406,88 @@ router.put('/proposals/:id', authenticateUser, async (req, res) => {
       commercialProposalUrl,
       scopeText,
       termsText,
+      clientUsername,
+      clientPassword,
       proposalValue
     } = req.body;
 
+    // Handle password update if provided
+    let hashedPassword = null;
+    let displayPassword = null;
+
+    if (clientPassword && clientPassword.trim() !== '') {
+      const saltRounds = 10;
+      hashedPassword = await bcrypt.hash(clientPassword, saltRounds);
+      displayPassword = clientPassword;
+    }
+
+    // Build dynamic update query
+    let updateFields = [];
+    let updateValues = [];
+    let paramCount = 1;
+
+    updateFields.push(`proposal_name = $${paramCount++}`);
+    updateValues.push(proposalName?.trim());
+
+    updateFields.push(`client_name = $${paramCount++}`);
+    updateValues.push(clientName?.trim());
+
+    updateFields.push(`job_name = $${paramCount++}`);
+    updateValues.push(jobName?.trim());
+
+    updateFields.push(`presentation_url = $${paramCount++}`);
+    updateValues.push(presentationUrl || null);
+
+    updateFields.push(`commercial_proposal_url = $${paramCount++}`);
+    updateValues.push(commercialProposalUrl || null);
+
+    updateFields.push(`scope_text = $${paramCount++}`);
+    updateValues.push(scopeText?.trim());
+
+    updateFields.push(`terms_text = $${paramCount++}`);
+    updateValues.push(termsText?.trim());
+
+    if (clientUsername && clientUsername.trim() !== '') {
+      // Check if client username is unique (excluding current proposal)
+      const existingUsername = await pool.query(
+        'SELECT id FROM proposals WHERE client_username = $1 AND id != $2',
+        [clientUsername.trim(), req.params.id]
+      );
+
+      if (existingUsername.rows.length > 0) {
+        return res.status(409).json({
+          success: false,
+          error: 'Client username already exists. Please choose a different username.'
+        });
+      }
+
+      updateFields.push(`client_username = $${paramCount++}`);
+      updateValues.push(clientUsername.trim());
+    }
+
+    if (hashedPassword) {
+      updateFields.push(`client_password_hash = $${paramCount++}`);
+      updateValues.push(hashedPassword);
+
+      updateFields.push(`client_password_display = $${paramCount++}`);
+      updateValues.push(displayPassword);
+    }
+
+    updateFields.push(`proposal_value = $${paramCount++}`);
+    updateValues.push(proposalValue || 0);
+
+    updateFields.push(`updated_at = NOW()`);
+
+    // Add WHERE clause parameters
+    updateValues.push(req.params.id);
+    updateValues.push(req.user.userId);
+
     const result = await pool.query(
       `UPDATE proposals SET
-        proposal_name = $1,
-        client_name = $2,
-        job_name = $3,
-        presentation_url = $4,
-        commercial_proposal_url = $5,
-        scope_text = $6,
-        terms_text = $7,
-        proposal_value = $8,
-        updated_at = NOW()
-      WHERE id = $9 AND user_id = $10
+        ${updateFields.join(', ')}
+      WHERE id = $${paramCount++} AND user_id = $${paramCount++}
       RETURNING *`,
-      [
-        proposalName?.trim(),
-        clientName?.trim(),
-        jobName?.trim(),
-        presentationUrl || null,
-        commercialProposalUrl || null,
-        scopeText?.trim(),
-        termsText?.trim(),
-        proposalValue || 0,
-        req.params.id,
-        req.user.userId
-      ]
+      updateValues
     );
 
     if (result.rows.length === 0) {
@@ -687,15 +754,15 @@ router.get('/client/proposal/:id', async (req, res) => {
       data: {
         proposal: {
           id: proposal.id,
-          proposalName: proposal.proposal_name,
-          clientName: proposal.client_name,
-          jobName: proposal.job_name,
-          presentationUrl: proposal.presentation_url,
-          commercialProposalUrl: proposal.commercial_proposal_url,
-          scopeText: proposal.scope_text,
-          termsText: proposal.terms_text,
+          proposal_name: proposal.proposal_name,
+          client_name: proposal.client_name,
+          job_name: proposal.job_name,
+          presentation_url: proposal.presentation_url,
+          commercial_proposal_url: proposal.commercial_proposal_url,
+          scope_text: proposal.scope_text,
+          terms_text: proposal.terms_text,
           status: proposal.status,
-          proposalValue: proposal.proposal_value
+          proposal_value: proposal.proposal_value
         },
         comments: commentsResult.rows
       }
