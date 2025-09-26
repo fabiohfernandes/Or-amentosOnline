@@ -10,6 +10,7 @@ import { QueryClient, QueryClientProvider } from 'react-query';
 import { ReactQueryDevtools } from 'react-query/devtools';
 import { Toaster } from 'react-hot-toast';
 import { useAuthStore } from '@/store/auth';
+import { useTokenRefresh } from '@/hooks/useTokenRefresh';
 import { isDevelopment } from '@/config';
 
 // Create query client with optimized configuration
@@ -54,6 +55,9 @@ export function Providers({ children }: ProvidersProps) {
 // Auth initialization component
 function AuthInitializer({ children }: { children: React.ReactNode }) {
   const initialize = useAuthStore(state => state.initialize);
+
+  // Setup automatic token refresh
+  useTokenRefresh();
 
   useEffect(() => {
     // Initialize auth state on app load

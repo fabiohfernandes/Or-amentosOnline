@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Metaverso Tramontina — Proposta Comercial</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            line-height: 1.6;
+            color: #1a1a2e;
+            background: #f8f9fa;
+        }
+
+        /* Hero Section */
+        .hero {
+            min-height: 100vh;
+            background: linear-gradient(rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.3)), 
+                        url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800"><rect fill="%23e8eef5" width="1200" height="800"/></svg>');
+            background-size: cover;
+            background-position: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 20px;
+            position: relative;
+        }
+
+        .hero-content {
+            max-width: 1200px;
+            color: #1a1a2e;
+        }
+
+        .hero h1 {
+            font-size: 3.5rem;
+            font-weight: 800;
+            margin-bottom: 20px;
+            color: #1a1a2e;
+        }
+
+        .hero-meta {
+            font-size: 1.1rem;
+            margin-bottom: 40px;
+            color: #4a5568;
+        }
+
+        .hero-meta strong {
+            color: #2d3748;
+        }
+
+        .hero-buttons {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 16px 40px;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            display: inline-block;
+        }
+
+        .btn-primary {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #2563eb;
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary {
+            background: white;
+            color: #3b82f6;
+            border: 2px solid #3b82f6;
+        }
+
+        .btn-secondary:hover {
+            background: #3b82f6;
+            color: white;
+        }
+
+        /* Section Styling */
+        section {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 80px 20px;
+        }
+
+        h2 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 40px;
+            color: #1a1a2e;
+        }
+
+        .subtitle {
+            font-size: 1.3rem;
+            color: #3b82f6;
+            font-weight: 600;
+            margin-bottom: 15px;
+        }
+
+        /* Grid Layouts */
+        .grid {
+            display: grid;
+            gap: 30px;
+            margin-top: 40px;
+        }
+
+        .grid-2 {
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        }
+
+        .grid-3 {
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        }
+
+        .card {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            transition: all 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+        }
+
+        .card h3 {
+            font-size: 1.5rem;
+            margin-bottom: 15px;
+            color: #1a1a2e;
+        }
+
+        .card p {
+            color: #4a5568;
+            line-height: 1.8;
+        }
+
+        /* Blue Background Sections */
+        .bg-blue {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: white;
+            border-radius: 20px;
+            padding: 60px;
+            margin: 60px 0;
+        }
+
+        .bg-blue h2 {
+            color: white;
+        }
+
+        .bg-blue .card {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+        }
+
+        .bg-blue .card:hover {
+            background: rgba(255, 255, 255, 0.25);
+        }
+
+        /* Light Background Sections */
+        .bg-light {
+            background: #e8eef5;
+            border-radius: 20px;
+            padding: 60px;
+            margin: 60px 0;
+        }
+
+        /* Table */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+
+        th, td {
+            padding: 20px;
+            text-align: left;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        th {
+            background: #f8fafc;
+            font-weight: 600;
+            color: #1a1a2e;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        /* Icons */
+        .icon {
+            font-size: 3rem;
+            margin-bottom: 20px;
+            color: #3b82f6;
+        }
+
+        /* Timeline */
+        .timeline {
+            position: relative;
+            padding-left: 40px;
+        }
+
+        .timeline-item {
+            margin-bottom: 40px;
+            position: relative;
+        }
+
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: -28px;
+            top: 8px;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #3b82f6;
+        }
+
+        .timeline-item h3 {
+            color: #1a1a2e;
+            margin-bottom: 10px;
+        }
+
+        /* Contact Section */
+        .contact {
+            background: linear-gradient(135deg, #1a1a2e 0%, #2d3748 100%);
+            color: white;
+            text-align: center;
+            padding: 60px;
+            border-radius: 20px;
+        }
+
+        .contact h2 {
+            color: white;
+        }
+
+        .contact-info {
+            font-size: 1.2rem;
+            margin-top: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .hero h1 {
+                font-size: 2.5rem;
+            }
+
+            h2 {
+                font-size: 2rem;
+            }
+
+            .bg-blue, .bg-light {
+                padding: 40px 30px;
+            }
+
+            section {
+                padding: 60px 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-content">
+            <h1>Metaverso Tramontina — Proposta Comercial</h1>
+            <div class="hero-meta">
+                <strong>Proponente:</strong> Metamentes Estúdios Digitais LTDA - InFigital<br>
+                <strong>Tecnologia:</strong> Unreal Engine 5.6 + Pixel Streaming<br>
+                <strong>Data:</strong> Setembro/2025
+            </div>
+            <div class="hero-buttons">
+                <a href="#contato" class="btn btn-primary">Falar com Especialista</a>
+                <a href="#" class="btn btn-secondary">Ver Demonstração</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Visão & Objetivo -->
+    <section>
+        <h2>Visão & Objetivo</h2>
+        
+        <p class="subtitle">Visão:</p>
+        <p style="margin-bottom: 30px; font-size: 1.1rem;">
+            Construir o <strong>ecossistema digital oficial da Tramontina</strong>, acessível via navegador (desktop e mobile), 
+            que una <strong>história, produtos, varejo, treinamento e impacto socioambiental</strong> em experiências 3D de altíssima qualidade, em tempo real.
+        </p>
+
+        <p class="subtitle">Objetivo de negócio:</p>
+        <ul style="list-style: none; padding: 0; font-size: 1.1rem;">
+            <li>• <strong>Aumentar engajamento</strong> e preferência de marca com experiências memoráveis.</li>
+            <li>• <strong>Acelerar vendas</strong> com showrooms e loja 3D integrados ao e-commerce.</li>
+            <li>• <strong>Fortalecer cultura e legado</strong> com o Museu Tramontina.</li>
+            <li>• <strong>Padronizar e escalar treinamento</strong> (operacional, segurança e EAD).</li>
+        </ul>
+    </section>
+
+    <!-- Por que agora? -->
+    <section class="bg-blue">
+        <h2>Por que agora? (Benefícios)</h2>
+        <div class="grid grid-3">
+            <div class="card">
+                <h3>Vitrine global 24/7</h3>
+                <p>alcance nacional e internacional sem barreiras físicas.</p>
+            </div>
+            <div class="card">
+                <h3>Baixo custo por usuário</h3>
+                <p>experiências imersivas via streaming — dispensa hardware gamer do cliente.</p>
+            </div>
+            <div class="card">
+                <h3>Go-to-market ágil</h3>
+                <p>ambientes evoluem e atualizam-se na velocidade do digital.</p>
+            </div>
+            <div class="card">
+                <h3>Dados e KPIs em tempo real</h3>
+                <p>mapear interações, preferências e conversões.</p>
+            </div>
+            <div class="card">
+                <h3>Treinamento padronizado e seguro</h3>
+                <p>EAD imersivo com simulações práticas.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Módulos do Ecossistema -->
+    <section class="bg-light">
+        <h2>Módulos do Ecossistema</h2>
+        <div class="grid grid-2">
+            <div class="card">
+                <div class="icon">🏛️</div>
+                <h3>Museu Tramontina</h3>
+                <p>legado, história, acervo digital e avatares narradores.</p>
+            </div>
+            <div class="card">
+                <div class="icon">🏠</div>
+                <h3>Casa Tramontina</h3>
+                <p>casa virtual na Serra Gaúcha com produtos interativos.</p>
+            </div>
+            <div class="card">
+                <div class="icon">🛒</div>
+                <h3>Varejo Tramontina</h3>
+                <p>showroom com marketplace integrado e configurações.</p>
+            </div>
+            <div class="card">
+                <div class="icon">💻</div>
+                <h3>Showrooms Temáticos</h3>
+                <p>espaços por linha (churrasco, ferramentas, cozinha).</p>
+            </div>
+            <div class="card">
+                <div class="icon">🎓</div>
+                <h3>Treinamento & EAD</h3>
+                <p>simulações operacionais, segurança e ESG.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Arquitetura & Plataforma -->
+    <section class="bg-blue">
+        <h2>Arquitetura & Plataforma</h2>
+        <div class="grid grid-3">
+            <div class="card">
+                <h3>Unreal Engine 5.6</h3>
+                <p>Pixel Streaming InFigital (render em GPU na nuvem).</p>
+            </div>
+            <div class="card">
+                <h3>Acesso via navegador</h3>
+                <p>(desktop/mobile).</p>
+            </div>
+            <div class="card">
+                <h3>Escalabilidade</h3>
+                <p>(autoscaling de instâncias conforme tráfego).</p>
+            </div>
+            <div class="card">
+                <h3>Segurança</h3>
+                <p>TLS 1.3, mTLS opcional, RBAC, logs e monitoramento.</p>
+            </div>
+            <div class="card">
+                <h3>Integrações</h3>
+                <p>e-commerce (API), CRM, analytics, DAM.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Roadmap -->
+    <section>
+        <h2>Roadmap por Fases</h2>
+        <div class="timeline">
+            <div class="timeline-item">
+                <h3>Fase 0 — Descoberta (2 semanas)</h3>
+                <p>Imersão de marca, objetivos, inventário de acervo, requisitos técnicos.</p>
+            </div>
+            <div class="timeline-item">
+                <h3>Fase 1 — MVP (8 semanas)</h3>
+                <p>Museu (sala principal + linha do tempo), Casa (cozinha funcional), 1 showroom temático, integração básica ao e-commerce, analytics.</p>
+            </div>
+            <div class="timeline-item">
+                <h3>Fase 2 — Expansão (6 semanas)</h3>
+                <p>Mais 2 showrooms, trilhas iniciais de EAD, avatares narradores multilíngues, CRM.</p>
+            </div>
+            <div class="timeline-item">
+                <h3>Fase 3 — Operação & Crescimento (contínuo)</h3>
+                <p>Calendário de ativações, novas coleções, otimização de funil, conteúdo sazonal.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Orçamento -->
+    <section class="bg-light">
+        <h2>Orçamento Detalhado (CAPEX de implantação)</h2>
+        <p style="margin-bottom: 30px;"><em>Premissas: alta fidelidade visual (PBR), ambientes otimizados para streaming, dublagem PT-BR, integração e-commerce padrão (APIs) e analytics.</em></p>
+        <table>
+            <thead>
+                <tr>
+                    <th>Item</th>
+                    <th>Descrição</th>
+                    <th>Valor (R$)</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td>Descoberta & UX</td><td>workshops, requisitos, UX flows</td><td>30.000</td></tr>
+                <tr><td>Direção de Arte & UI</td><td>identidade visual, UI kit, GUI 3D</td><td>20.000</td></tr>
+                <tr><td>Museu (MVP)</td><td>sala principal, timeline, acervo inicial</td><td>90.000</td></tr>
+                <tr><td>Casa (cozinha funcional)</td><td>cozinha interativa + lógica de produto</td><td>80.000</td></tr>
+                <tr><td>Showrooms (3)</td><td>3 ambientes temáticos @ 30k</td><td>90.000</td></tr>
+                <tr><td>Varejo / Integração</td><td>catálogo, variações, checkout API</td><td>120.000</td></tr>
+                <tr><td>Avatares narradores</td><td>MetaHuman, captação voz, lipsync</td><td>40.000</td></tr>
+                <tr><td>Treinamento & EAD (2 sims)</td><td>simulações operacionais/safety</td><td>110.000</td></tr>
+                <tr><td>Dev UE + Pixel Streaming</td><td>lógica, otimização, empacotamento</td><td>60.000</td></tr>
+                <tr><td>Infra setup & DevOps</td><td>IaC, monitoramento, pipelines</td><td>20.000</td></tr>
+                <tr><td>QA, A11y e Segurança</td><td>testes funcionais/carga/compliance</td><td>10.000</td></tr>
+                <tr><td>Gestão de Projeto</td><td>PMO, rituais, documentação</td><td>30.000</td></tr>
+            </tbody>
+        </table>
+    </section>
+
+    <!-- OPEX -->
+    <section class="bg-blue">
+        <h2>OPEX Mensal (Operação)</h2>
+        <p style="margin-bottom: 30px;">Os custos operacionais mensais são compostos por infraestrutura, suporte e desenvolvimento contínuo, garantindo a performance e evolução da plataforma.</p>
+        <table style="background: rgba(255,255,255,0.1); color: white;">
+            <thead>
+                <tr style="background: rgba(255,255,255,0.1);">
+                    <th style="color: white;">Componente</th>
+                    <th style="color: white;">Faixa mensal (R$)</th>
+                    <th style="color: white;">Observações</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Infra GPU na nuvem</td>
+                    <td>35.000 – 70.000</td>
+                    <td>35-80 instâncias on-demand/auto-scale</td>
+                </tr>
+                <tr>
+                    <td>Suporte & Monitoramento (NOC)</td>
+                    <td>15.000</td>
+                    <td>SRE, alertas, SLA</td>
+                </tr>
+                <tr>
+                    <td>Evolutivo & Conteúdo</td>
+                    <td>30.000</td>
+                    <td>novas coleções, otimizações</td>
+                </tr>
+                <tr style="font-weight: 600;">
+                    <td>Total estimado/mês</td>
+                    <td>80.000 – 115.000</td>
+                    <td>conforme tráfego sazonal</td>
+                </tr>
+            </tbody>
+        </table>
+    </section>
+
+    <!-- Contato -->
+    <section class="contact" id="contato">
+        <h2>Próximos Passos</h2>
+        <div class="grid grid-2" style="text-align: left; margin-top: 40px;">
+            <div>
+                <h3 style="color: white;">📋 Reunião de alinhamento</h3>
+                <p>(escopo detalhado e prioridades).</p>
+            </div>
+            <div>
+                <h3 style="color: white;">🏭 Visita técnica à sede Tramontina</h3>
+                <p>(acervo e locais).</p>
+            </div>
+            <div>
+                <h3 style="color: white;">✅ Aprovação de orçamento e plano</h3>
+                <p>(tier escolhido).</p>
+            </div>
+            <div>
+                <h3 style="color: white;">🚀 Kickoff e início da Fase 0</h3>
+                <p>(Descoberta).</p>
+            </div>
+        </div>
+        <div class="contact-info">
+            <strong>Contato:</strong> Fábio Hartmann Fernandes — InFigital / Metamentes<br>
+            <strong>Email:</strong> fabio@infigital.com.br
+        </div>
+    </section>
+</body>
+</html>

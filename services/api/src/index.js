@@ -32,6 +32,10 @@ const {
   LEGAL_BASES
 } = require('./middleware/lgpd');
 
+// Import proposal platform routes
+const { router: proposalPlatformRouter, initializePool } = require('./routes/proposal-platform');
+const { router: clientAuthRouter, initializePool: initializeClientPool } = require('./routes/client-auth');
+
 // Initialize Express app
 const app = express();
 const port = process.env.PORT || 3000;
@@ -160,7 +164,17 @@ const authenticateToken = (req, res, next) => {
   });
 };
 
+// Initialize proposal platform routes with database pool
+initializePool(pool);
+initializeClientPool(pool);
+
 // API Routes
+
+// Mount proposal platform routes
+app.use('/api/v1', proposalPlatformRouter);
+
+// Mount client authentication routes
+app.use('/api/v1/client', clientAuthRouter);
 
 // Health check endpoint
 app.get('/api/v1/health', async (req, res) => {
@@ -433,9 +447,101 @@ app.get('/api/v1/auth/profile', authenticateToken, (req, res) => {
   });
 });
 
+// Refresh token endpoint
+app.post('/api/v1/auth/refresh', async (req, res) => {
+  try {
+    const { refreshToken } = req.body;
+
+    if (!refreshToken) {
+      return res.status(400).json({
+        success: false,
+        message: 'Refresh token is required',
+        errors: ['refreshToken field is missing']
+      });
+    }
+
+    // Verify refresh token
+    let decoded;
+    try {
+      decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET || 'fallback_refresh_secret');
+    } catch (error) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid or expired refresh token',
+        errors: ['Refresh token is not valid']
+      });
+    }
+
+    // Check if it's a refresh token
+    if (decoded.type !== 'refresh') {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid token type',
+        errors: ['Token is not a refresh token']
+      });
+    }
+
+    // Get user from database
+    const result = await pool.query('SELECT * FROM users WHERE id = $1', [decoded.userId]);
+
+    if (result.rows.length === 0) {
+      return res.status(401).json({
+        success: false,
+        message: 'User not found',
+        errors: ['User associated with refresh token does not exist']
+      });
+    }
+
+    const user = result.rows[0];
+
+    // Generate new access token
+    const newAccessToken = jwt.sign(
+      { userId: user.id, email: user.email, role: user.role },
+      process.env.JWT_SECRET || 'fallback_secret',
+      { expiresIn: process.env.JWT_EXPIRES_IN || '15m' }
+    );
+
+    // Generate new refresh token
+    const newRefreshToken = jwt.sign(
+      { userId: user.id, type: 'refresh' },
+      process.env.JWT_REFRESH_SECRET || 'fallback_refresh_secret',
+      { expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d' }
+    );
+
+    logger.info(`Token refreshed for user: ${user.email}`);
+
+    res.json({
+      success: true,
+      message: 'Token refreshed successfully',
+      data: {
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          role: user.role
+        },
+        tokens: {
+          accessToken: newAccessToken,
+          refreshToken: newRefreshToken,
+          expiresAt: new Date(Date.now() + 15 * 60 * 1000).toISOString(), // 15 minutes from now
+          expiresIn: 900
+        }
+      }
+    });
+  } catch (error) {
+    logger.error('Token refresh error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      errors: ['Failed to refresh token']
+    });
+  }
+});
+
 // =================
-// PROPOSAL ENDPOINTS
+// PROPOSAL ENDPOINTS - DISABLED (using proposal-platform.js instead)
 // =================
+/*
 
 // Create new proposal
 app.post('/api/v1/proposals',
@@ -661,6 +767,7 @@ app.get('/api/v1/proposals/stats/summary',
     }
   }
 );
+*/
 
 // =================
 // CLIENT ENDPOINTS
@@ -1009,9 +1116,9 @@ process.on('SIGINT', async () => {
 // Initialize database and start server
 (async () => {
   try {
-    // Initialize database tables
-    await initializeDatabase();
-    logger.info('Database initialized successfully');
+    // Database tables already initialized via migration
+    // await initializeDatabase();
+    logger.info('Using existing database schema');
 
     // Start server
     app.listen(port, () => {

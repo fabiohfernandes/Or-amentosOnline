@@ -1,10 +1,8 @@
-// ============================================================================
-// Dashboard Page - Main User Dashboard
-// NOVA Agent - Frontend Development Specialist
-// ============================================================================
+'use client';
 
-import { Metadata } from 'next';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { toast } from 'react-hot-toast';
 import {
   PlusIcon,
   DocumentTextIcon,
@@ -12,99 +10,81 @@ import {
   ChartBarIcon,
   ClockIcon,
   CheckCircleIcon,
-  ExclamationTriangleIcon,
-  EyeIcon
+  ArchiveBoxIcon,
+  EyeIcon,
+  PencilIcon,
+  TrashIcon,
+  ShareIcon,
+  ChatBubbleLeftRightIcon,
+  CurrencyDollarIcon
 } from '@heroicons/react/24/outline';
+import { useAuthStore } from '../../store/auth';
 
-export const metadata: Metadata = {
-  title: 'Dashboard',
-  description: 'Painel principal do OrçamentosOnline - Gerencie seus orçamentos e clientes',
-};
+// Types
+interface DashboardStats {
+  proposals: {
+    total: number;
+    open: number;
+    closed: number;
+    archived: number;
+  };
+  revenue: {
+    total: number;
+    closed: number;
+  };
+  activity: {
+    views: number;
+    uniqueVisitors: number;
+    conversionRate: number;
+  };
+  recentComments: Array<{
+    comment_text: string;
+    created_at: string;
+    proposal_name: string;
+    client_name: string;
+  }>;
+}
 
-// Mock data for demonstration
-const stats = [
-  {
-    id: 1,
-    name: 'Orçamentos Ativos',
-    value: '12',
-    icon: DocumentTextIcon,
-    change: '+4.75%',
-    changeType: 'positive',
-  },
-  {
-    id: 2,
-    name: 'Clientes',
-    value: '8',
-    icon: UserGroupIcon,
-    change: '+12.5%',
-    changeType: 'positive',
-  },
-  {
-    id: 3,
-    name: 'Receita Mensal',
-    value: 'R$ 45.2k',
-    icon: ChartBarIcon,
-    change: '+2.1%',
-    changeType: 'positive',
-  },
-  {
-    id: 4,
-    name: 'Taxa de Conversão',
-    value: '68%',
-    icon: CheckCircleIcon,
-    change: '-1.2%',
-    changeType: 'negative',
-  },
-];
+interface Proposal {
+  id: string;
+  proposal_name: string;
+  client_name: string;
+  job_name: string;
+  status: 'open' | 'closed' | 'archived';
+  proposal_value: number;
+  created_at: string;
+  updated_at: string;
+  closed_at: string | null;
+  public_token: string;
+}
 
-const recentProposals = [
-  {
-    id: 1,
-    title: 'Website E-commerce - TechStore',
-    client: 'João Silva',
-    value: 'R$ 15.000',
-    status: 'pending',
-    date: '2025-01-15',
-  },
-  {
-    id: 2,
-    title: 'App Mobile - FitTrack',
-    client: 'Maria Santos',
-    value: 'R$ 25.000',
-    status: 'approved',
-    date: '2025-01-12',
-  },
-  {
-    id: 3,
-    title: 'Sistema Web - LogiFlow',
-    client: 'Carlos Oliveira',
-    value: 'R$ 32.000',
-    status: 'draft',
-    date: '2025-01-10',
-  },
-  {
-    id: 4,
-    title: 'Landing Page - StartupXYZ',
-    client: 'Ana Costa',
-    value: 'R$ 5.500',
-    status: 'rejected',
-    date: '2025-01-08',
-  },
-];
+interface ProposalAnalytics {
+  pageAnalytics: Array<{
+    page_name: string;
+    views: number;
+    total_time: number;
+    avg_time: number;
+    unique_sessions: number;
+  }>;
+  commentCount: number;
+  summary: {
+    totalViews: number;
+    totalTime: number;
+    uniqueSessions: number;
+  };
+}
 
 const getStatusBadge = (status: string) => {
   const styles = {
-    pending: 'bg-warning-100 text-warning-800 border-warning-200',
-    approved: 'bg-success-100 text-success-800 border-success-200',
-    draft: 'bg-secondary-100 text-secondary-800 border-secondary-200',
-    rejected: 'bg-danger-100 text-danger-800 border-danger-200',
+    open: 'bg-blue-100 text-blue-800 border-blue-200',
+    closed: 'bg-green-100 text-green-800 border-green-200',
+    archived: 'bg-gray-100 text-gray-800 border-gray-200'
   };
 
   const labels = {
-    pending: 'Pendente',
-    approved: 'Aprovado',
-    draft: 'Rascunho',
-    rejected: 'Rejeitado',
+    open: 'Aberta',
+    closed: 'Fechada',
+    archived: 'Arquivada'
   };
 
   return (
@@ -116,39 +96,163 @@ const getStatusBadge = (status: string) => {
 
 const getStatusIcon = (status: string) => {
   switch (status) {
-    case 'pending':
-      return <ClockIcon className="h-4 w-4 text-warning-500" />;
-    case 'approved':
-      return <CheckCircleIcon className="h-4 w-4 text-success-500" />;
-    case 'draft':
-      return <DocumentTextIcon className="h-4 w-4 text-secondary-500" />;
-    case 'rejected':
-      return <ExclamationTriangleIcon className="h-4 w-4 text-danger-500" />;
+    case 'open':
+      return <ClockIcon className="h-4 w-4 text-blue-500" />;
+    case 'closed':
+      return <CheckCircleIcon className="h-4 w-4 text-green-500" />;
+    case 'archived':
+      return <ArchiveBoxIcon className="h-4 w-4 text-gray-500" />;
     default:
-      return <DocumentTextIcon className="h-4 w-4 text-secondary-500" />;
+      return <DocumentTextIcon className="h-4 w-4 text-gray-500" />;
   }
 };
 
 export default function DashboardPage() {
+  const { user, tokens } = useAuthStore();
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [proposals, setProposals] = useState<Proposal[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedProposal, setSelectedProposal] = useState<string | null>(null);
+  const [proposalAnalytics, setProposalAnalytics] = useState<ProposalAnalytics | null>(null);
+
+  // Load dashboard data
+  const loadDashboardData = async () => {
+    if (!tokens?.accessToken) return;
+
+    try {
+      setLoading(true);
+
+      // Load stats
+      const statsResponse = await fetch('/api/v1/dashboard/stats', {
+        headers: {
+          'Authorization': `Bearer ${tokens.accessToken}`,
+        },
+      });
+
+      if (statsResponse.ok) {
+        const statsData = await statsResponse.json();
+        setStats(statsData.data.stats);
+      }
+
+      // Load proposals
+      const proposalsResponse = await fetch('/api/v1/proposals?limit=10', {
+        headers: {
+          'Authorization': `Bearer ${tokens.accessToken}`,
+        },
+      });
+
+      if (proposalsResponse.ok) {
+        const proposalsData = await proposalsResponse.json();
+        setProposals(proposalsData.data.proposals);
+      }
+    } catch (error) {
+      console.error('Error loading dashboard data:', error);
+      toast.error('Erro ao carregar dados do dashboard');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Load proposal analytics
+  const loadProposalAnalytics = async (proposalId: string) => {
+    if (!tokens?.accessToken) return;
+
+    try {
+      const response = await fetch(`/api/v1/proposals/${proposalId}/analytics`, {
+        headers: {
+          'Authorization': `Bearer ${tokens.accessToken}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setProposalAnalytics(data.data);
+      }
+    } catch (error) {
+      console.error('Error loading proposal analytics:', error);
+    }
+  };
+
+  // Delete proposal
+  const deleteProposal = async (proposalId: string) => {
+    if (!tokens?.accessToken) return;
+
+    const confirmed = window.confirm(
+      'Tem certeza que deseja excluir esta proposta? Esta ação não pode ser desfeita.'
+    );
+
+    if (!confirmed) return;
+
+    try {
+      const response = await fetch(`/api/v1/proposals/${proposalId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${tokens.accessToken}`,
+        },
+      });
+
+      if (response.ok) {
+        setProposals(prev => prev.filter(p => p.id !== proposalId));
+        toast.success('Proposta excluída com sucesso');
+        await loadDashboardData(); // Refresh stats
+      } else {
+        toast.error('Erro ao excluir proposta');
+      }
+    } catch (error) {
+      console.error('Error deleting proposal:', error);
+      toast.error('Erro ao excluir proposta');
+    }
+  };
+
+  // Copy proposal link
+  const copyProposalLink = async (publicToken: string) => {
+    const url = `${window.location.origin}/proposal/${publicToken}`;
+
+    try {
+      await navigator.clipboard.writeText(url);
+      toast.success('Link copiado para a área de transferência');
+    } catch (error) {
+      console.error('Error copying link:', error);
+      toast.error('Erro ao copiar link');
+    }
+  };
+
+  useEffect(() => {
+    if (tokens?.accessToken) {
+      loadDashboardData();
+    }
+  }, [tokens]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Carregando dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-secondary-50">
+    <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-white shadow-sm border-b border-secondary-200">
+      <div className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-6">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-              <p className="mt-1 text-sm text-secondary-600">
-                Bem-vindo de volta! Aqui está um resumo dos seus orçamentos.
+              <p className="mt-1 text-sm text-gray-600">
+                Bem-vindo de volta, {user?.name || 'Usuário'}! Gerencie suas propostas aqui.
               </p>
             </div>
             <div className="flex items-center space-x-3">
               <Link
-                href="/proposals/new"
-                className="btn-primary flex items-center"
+                href="/proposals/create"
+                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md flex items-center text-sm font-medium transition-colors"
               >
                 <PlusIcon className="h-5 w-5 mr-2" />
-                Novo Orçamento
+                Nova Proposta
               </Link>
             </div>
           </div>
@@ -157,160 +261,341 @@ export default function DashboardPage() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4 mb-8">
-          {stats.map((stat) => (
-            <div key={stat.id} className="card p-6">
+        {stats && (
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4 mb-8">
+            <div className="bg-white rounded-lg shadow-sm border p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-secondary-600">{stat.name}</p>
-                  <p className="text-2xl font-semibold text-gray-900">{stat.value}</p>
+                  <p className="text-sm font-medium text-gray-600">Total de Propostas</p>
+                  <p className="text-2xl font-semibold text-gray-900">{stats.proposals.total}</p>
                 </div>
-                <div className="flex-shrink-0">
-                  <stat.icon className="h-8 w-8 text-primary-600" />
-                </div>
+                <DocumentTextIcon className="h-8 w-8 text-blue-600" />
               </div>
-              <div className="mt-4 flex items-center">
-                <span
-                  className={`text-sm font-medium ${
-                    stat.changeType === 'positive' ? 'text-success-600' : 'text-danger-600'
-                  }`}
-                >
-                  {stat.change}
+              <div className="mt-4 flex items-center space-x-4">
+                <span className="text-xs text-gray-500">
+                  {stats.proposals.open} abertas • {stats.proposals.closed} fechadas
                 </span>
-                <span className="text-sm text-secondary-500 ml-2">desde o mês passado</span>
               </div>
             </div>
-          ))}
-        </div>
 
-        {/* Recent Proposals */}
-        <div className="card">
-          <div className="px-6 py-4 border-b border-secondary-200">
+            <div className="bg-white rounded-lg shadow-sm border p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Visualizações</p>
+                  <p className="text-2xl font-semibold text-gray-900">{stats.activity.views}</p>
+                </div>
+                <EyeIcon className="h-8 w-8 text-green-600" />
+              </div>
+              <div className="mt-4">
+                <span className="text-xs text-gray-500">
+                  {stats.activity.uniqueVisitors} visitantes únicos
+                </span>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-lg shadow-sm border p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Receita Total</p>
+                  <p className="text-2xl font-semibold text-gray-900">
+                    {new Intl.NumberFormat('pt-BR', {
+                      style: 'currency',
+                      currency: 'BRL'
+                    }).format(stats.revenue.total)}
+                  </p>
+                </div>
+                <CurrencyDollarIcon className="h-8 w-8 text-purple-600" />
+              </div>
+              <div className="mt-4">
+                <span className="text-xs text-gray-500">
+                  {new Intl.NumberFormat('pt-BR', {
+                    style: 'currency',
+                    currency: 'BRL'
+                  }).format(stats.revenue.closed)} fechadas
+                </span>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-lg shadow-sm border p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Taxa de Conversão</p>
+                  <p className="text-2xl font-semibold text-gray-900">
+                    {stats.activity.conversionRate.toFixed(1)}%
+                  </p>
+                </div>
+                <ChartBarIcon className="h-8 w-8 text-orange-600" />
+              </div>
+              <div className="mt-4">
+                <span className="text-xs text-gray-500">Últimos 30 dias</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Recent Comments */}
+        {stats?.recentComments && stats.recentComments.length > 0 && (
+          <div className="bg-white rounded-lg shadow-sm border p-6 mb-8">
+            <div className="flex items-center mb-4">
+              <ChatBubbleLeftRightIcon className="h-5 w-5 text-gray-400 mr-2" />
+              <h2 className="text-lg font-semibold text-gray-900">Comentários Recentes</h2>
+            </div>
+            <div className="space-y-3">
+              {stats.recentComments.slice(0, 3).map((comment, index) => (
+                <div key={index} className="p-3 bg-gray-50 rounded-lg">
+                  <p className="text-sm text-gray-800">{comment.comment_text}</p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    <span className="font-medium">{comment.client_name}</span> em {comment.proposal_name} •{' '}
+                    {new Date(comment.created_at).toLocaleString('pt-BR')}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Proposals Table */}
+        <div className="bg-white rounded-lg shadow-sm border">
+          <div className="px-6 py-4 border-b">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-gray-900">Orçamentos Recentes</h2>
+              <h2 className="text-lg font-semibold text-gray-900">Propostas Recentes</h2>
               <Link
                 href="/proposals"
-                className="text-sm text-primary-600 hover:text-primary-900 font-medium"
+                className="text-sm text-blue-600 hover:text-blue-700 font-medium"
               >
-                Ver todos
+                Ver todas
               </Link>
             </div>
           </div>
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-secondary-200">
-              <thead className="bg-secondary-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-secondary-500 uppercase tracking-wider">
-                    Projeto
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-secondary-500 uppercase tracking-wider">
-                    Cliente
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-secondary-500 uppercase tracking-wider">
-                    Valor
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-secondary-500 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-secondary-500 uppercase tracking-wider">
-                    Data
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-secondary-500 uppercase tracking-wider">
-                    Ações
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-secondary-200">
-                {recentProposals.map((proposal) => (
-                  <tr key={proposal.id} className="hover:bg-secondary-50 transition-colors">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        {getStatusIcon(proposal.status)}
-                        <div className="ml-3">
-                          <div className="text-sm font-medium text-gray-900">
-                            {proposal.title}
+
+          {proposals.length === 0 ? (
+            <div className="p-12 text-center">
+              <DocumentTextIcon className="mx-auto h-12 w-12 text-gray-400" />
+              <h3 className="mt-2 text-sm font-medium text-gray-900">Nenhuma proposta ainda</h3>
+              <p className="mt-1 text-sm text-gray-500">
+                Comece criando sua primeira proposta.
+              </p>
+              <div className="mt-6">
+                <Link
+                  href="/proposals/create"
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors inline-flex items-center"
+                >
+                  <PlusIcon className="h-4 w-4 mr-2" />
+                  Criar Primeira Proposta
+                </Link>
+              </div>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Proposta
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Cliente
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Valor
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Status
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Data
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Ações
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {proposals.map((proposal) => (
+                    <tr key={proposal.id} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center">
+                          {getStatusIcon(proposal.status)}
+                          <div className="ml-3">
+                            <div className="text-sm font-medium text-gray-900">
+                              {proposal.proposal_name}
+                            </div>
+                            <div className="text-sm text-gray-500">
+                              {proposal.job_name}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{proposal.client}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-semibold text-gray-900">{proposal.value}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {getStatusBadge(proposal.status)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-secondary-500">
-                      {new Date(proposal.date).toLocaleDateString('pt-BR')}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <div className="flex items-center space-x-2">
-                        <button className="text-primary-600 hover:text-primary-900 transition-colors">
-                          <EyeIcon className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900">{proposal.client_name}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm font-semibold text-gray-900">
+                          {proposal.proposal_value > 0 ? (
+                            new Intl.NumberFormat('pt-BR', {
+                              style: 'currency',
+                              currency: 'BRL'
+                            }).format(proposal.proposal_value)
+                          ) : (
+                            '-'
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {getStatusBadge(proposal.status)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {new Date(proposal.created_at).toLocaleDateString('pt-BR')}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <div className="flex items-center space-x-2">
+                          <button
+                            onClick={() => copyProposalLink(proposal.public_token)}
+                            className="text-blue-600 hover:text-blue-900 transition-colors"
+                            title="Copiar link"
+                          >
+                            <ShareIcon className="h-4 w-4" />
+                          </button>
+
+                          <Link
+                            href={`/proposals/${proposal.id}/edit`}
+                            className="text-gray-600 hover:text-gray-900 transition-colors"
+                            title="Editar"
+                          >
+                            <PencilIcon className="h-4 w-4" />
+                          </Link>
+
+                          <button
+                            onClick={() => {
+                              setSelectedProposal(selectedProposal === proposal.id ? null : proposal.id);
+                              if (selectedProposal !== proposal.id) {
+                                loadProposalAnalytics(proposal.id);
+                              }
+                            }}
+                            className="text-green-600 hover:text-green-900 transition-colors"
+                            title="Ver analytics"
+                          >
+                            <ChartBarIcon className="h-4 w-4" />
+                          </button>
+
+                          <button
+                            onClick={() => deleteProposal(proposal.id)}
+                            className="text-red-600 hover:text-red-900 transition-colors"
+                            title="Excluir"
+                          >
+                            <TrashIcon className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
+
+        {/* Proposal Analytics Modal */}
+        {selectedProposal && proposalAnalytics && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg max-w-2xl w-full max-h-96 overflow-y-auto">
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-medium text-gray-900">Analytics da Proposta</h3>
+                  <button
+                    onClick={() => {
+                      setSelectedProposal(null);
+                      setProposalAnalytics(null);
+                    }}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-3 gap-4 mb-6">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-blue-600">{proposalAnalytics.summary.totalViews}</div>
+                    <div className="text-sm text-gray-500">Total de Visualizações</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-green-600">{proposalAnalytics.summary.uniqueSessions}</div>
+                    <div className="text-sm text-gray-500">Sessões Únicas</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-purple-600">{proposalAnalytics.commentCount}</div>
+                    <div className="text-sm text-gray-500">Comentários</div>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <h4 className="font-medium text-gray-900">Visualizações por Página:</h4>
+                  {proposalAnalytics.pageAnalytics.map((page) => (
+                    <div key={page.page_name} className="flex justify-between items-center p-3 bg-gray-50 rounded">
+                      <span className="capitalize">{page.page_name}</span>
+                      <div className="text-right">
+                        <div className="font-medium">{page.views} visualizações</div>
+                        <div className="text-sm text-gray-500">
+                          {Math.floor(parseInt(page.avg_time) / 60)}:{(parseInt(page.avg_time) % 60).toString().padStart(2, '0')} tempo médio
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Quick Actions */}
         <div className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
           <Link
-            href="/proposals/new"
-            className="card p-6 hover:shadow-md transition-shadow cursor-pointer group"
+            href="/proposals/create"
+            className="bg-white rounded-lg shadow-sm border p-6 hover:shadow-md transition-shadow cursor-pointer group"
           >
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <PlusIcon className="h-8 w-8 text-primary-600 group-hover:text-primary-700" />
+                <PlusIcon className="h-8 w-8 text-blue-600 group-hover:text-blue-700" />
               </div>
               <div className="ml-4">
-                <h3 className="text-lg font-medium text-gray-900">Criar Orçamento</h3>
-                <p className="text-sm text-secondary-600">
-                  Comece um novo orçamento do zero
+                <h3 className="text-lg font-medium text-gray-900">Criar Proposta</h3>
+                <p className="text-sm text-gray-600">
+                  Comece uma nova proposta do zero
                 </p>
               </div>
             </div>
           </Link>
 
           <Link
-            href="/clients"
-            className="card p-6 hover:shadow-md transition-shadow cursor-pointer group"
+            href="/proposals"
+            className="bg-white rounded-lg shadow-sm border p-6 hover:shadow-md transition-shadow cursor-pointer group"
           >
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <UserGroupIcon className="h-8 w-8 text-primary-600 group-hover:text-primary-700" />
+                <DocumentTextIcon className="h-8 w-8 text-blue-600 group-hover:text-blue-700" />
               </div>
               <div className="ml-4">
-                <h3 className="text-lg font-medium text-gray-900">Gerenciar Clientes</h3>
-                <p className="text-sm text-secondary-600">
-                  Visualize e edite informações dos clientes
+                <h3 className="text-lg font-medium text-gray-900">Ver Todas as Propostas</h3>
+                <p className="text-sm text-gray-600">
+                  Gerencie todas as suas propostas
                 </p>
               </div>
             </div>
           </Link>
 
-          <Link
-            href="/reports"
-            className="card p-6 hover:shadow-md transition-shadow cursor-pointer group"
-          >
+          <div className="bg-white rounded-lg shadow-sm border p-6 group">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <ChartBarIcon className="h-8 w-8 text-primary-600 group-hover:text-primary-700" />
+                <ChartBarIcon className="h-8 w-8 text-blue-600" />
               </div>
               <div className="ml-4">
-                <h3 className="text-lg font-medium text-gray-900">Relatórios</h3>
-                <p className="text-sm text-secondary-600">
-                  Analise sua performance e métricas
+                <h3 className="text-lg font-medium text-gray-900">Analytics</h3>
+                <p className="text-sm text-gray-600">
+                  Visualize o desempenho das propostas
                 </p>
               </div>
             </div>
-          </Link>
+          </div>
         </div>
       </div>
     </div>

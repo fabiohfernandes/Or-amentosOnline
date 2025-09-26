@@ -18,7 +18,8 @@
       "Bash(curl:*)",
       "Bash(python:*)",
       "Bash(docker logs:*)",
-      "Bash(cp:*)"
+      "Bash(cp:*)",
+      "Bash(docker cp:*)"
     ],
     "deny": [],
     "ask": []

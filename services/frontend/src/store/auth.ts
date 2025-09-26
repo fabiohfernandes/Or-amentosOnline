@@ -58,7 +58,7 @@ export const useAuthStore = create<AuthStore>()(
         }
       },
 
-      logout: () => {
+      logout: (redirectToLogin = false) => {
         // Call logout API endpoint (fire and forget)
         apiClient.post(apiEndpoints.auth.logout).catch(() => {
           // Ignore errors - we're logging out anyway
@@ -71,6 +71,11 @@ export const useAuthStore = create<AuthStore>()(
           isLoading: false,
           error: null,
         });
+
+        // Redirect to login if requested (usually for forced logouts due to token expiration)
+        if (redirectToLogin && typeof window !== 'undefined' && !window.location.pathname.startsWith('/auth')) {
+          window.location.href = '/auth/login';
+        }
       },
 
       register: async (data: RegisterData) => {
@@ -263,6 +268,55 @@ export const useAuthStore = create<AuthStore>()(
 
       clearError: () => {
         set({ error: null });
+      },
+
+      // Force sync with localStorage (useful when tokens are updated externally)
+      syncWithStorage: () => {
+        const authData = localStorage.getItem(constants.STORAGE_KEYS.AUTH_TOKENS);
+        if (authData) {
+          try {
+            const { state } = JSON.parse(authData);
+            if (state?.tokens && state?.user) {
+              set({
+                isAuthenticated: state.isAuthenticated || false,
+                user: state.user,
+                tokens: state.tokens ? {
+                  ...state.tokens,
+                  expiresAt: new Date(state.tokens.expiresAt),
+                } : null,
+              });
+            }
+          } catch (error) {
+            console.warn('Failed to sync auth state from localStorage:', error);
+          }
+        }
+      },
+
+      // Check if token needs refresh and do it proactively
+      checkAndRefreshToken: async () => {
+        const { tokens } = get();
+
+        if (!tokens?.accessToken || !tokens?.refreshToken) {
+          return false;
+        }
+
+        // Check if token expires in next 2 minutes
+        const expiresAt = tokens.expiresAt ? new Date(tokens.expiresAt) : null;
+        const now = new Date();
+        const timeUntilExpiry = expiresAt ? expiresAt.getTime() - now.getTime() : 0;
+        const shouldRefresh = timeUntilExpiry < 2 * 60 * 1000; // 2 minutes
+
+        if (shouldRefresh) {
+          try {
+            await get().refreshToken();
+            return true;
+          } catch (error) {
+            console.warn('Proactive token refresh failed:', error);
+            return false;
+          }
+        }
+
+        return false;
       },
 
       initialize: async () => {

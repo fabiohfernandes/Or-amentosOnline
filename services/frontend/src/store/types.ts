@@ -22,7 +22,7 @@ import type {
 export interface AuthStore extends AuthState {
   // Actions
   login: (email: string, password: string) => Promise<void>;
-  logout: () => void;
+  logout: (redirectToLogin?: boolean) => void;
   register: (data: RegisterData) => Promise<void>;
   refreshToken: () => Promise<void>;
   updateProfile: (data: Partial<User>) => Promise<void>;
@@ -34,6 +34,8 @@ export interface AuthStore extends AuthState {
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   clearError: () => void;
+  syncWithStorage: () => void;
+  checkAndRefreshToken: () => Promise<boolean>;
   initialize: () => Promise<void>;
 }
 
