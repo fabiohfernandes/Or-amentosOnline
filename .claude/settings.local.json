@@ -19,7 +19,17 @@
       "Bash(python:*)",
       "Bash(docker logs:*)",
       "Bash(cp:*)",
-      "Bash(docker cp:*)"
+      "Bash(docker cp:*)",
+      "Bash(tasklist)",
+      "Bash(findstr:*)",
+      "Bash(docker system prune:*)",
+      "Bash(taskkill:*)",
+      "Bash(powershell:*)",
+      "Bash(sc query:*)",
+      "Bash(reg query:*)",
+      "Bash(wmic:*)",
+      "Bash(docker volume:*)",
+      "Bash(docker:*)"
     ],
     "deny": [],
     "ask": []
