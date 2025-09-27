@@ -51,7 +51,7 @@ project_structure:
   folders:
     AI_Coordenation: MAESTRO orchestrator and system configuration
     AI_Research and Planning: 10 Alpha-Discovery crew specialists
-    AI_Design and Implementation: 57 Beta-Delivery & Gamma-Excellence specialists
+    AI_Design and Implementation: 58 Beta-Delivery & Gamma-Excellence specialists
     AI_Product: CONSTELLATION PRD storage
     AI_Docs: Documentation, ADRs, and best practices
     AI_Refs: Reference materials and resources
@@ -254,6 +254,7 @@ core_crews:
     - SOLIS: Blockchain/Smart Contract Developer Specialist
     - TOKENWORKS: Tokenization Specialist
     - FLOWCAST: Streaming and Realtime Media Specialist
+    - AERO: Glassmorphism UI Specialist
     - AURELIA: Design System and UI Specialist
     - LYRA: Product Designer Specialist
     - IRIS: Graphic and Visual Designer Specialist
@@ -281,6 +282,7 @@ specialized_units:
 
   product_experience:
     - LYRA: Product Design & User Research
+    - AERO: Glassmorphism & Windows Aero UI
     - AURELIA: Design Systems & Component Libraries
     - IRIS: Visual Design & Brand Identity
     - PHOENIX: Interaction & 3D Design

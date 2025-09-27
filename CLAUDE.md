@@ -17,7 +17,7 @@ The project follows a hierarchical multi-agent orchestration model:
 
 - **MAESTRO**: Central orchestrator coordinating all agents
 - **Crew Alpha (Discovery)**: Research & Planning agents (10 specialists)
-- **Crew Beta (Delivery)**: Development & Implementation agents (57 specialists)
+- **Crew Beta (Delivery)**: Development & Implementation agents (58 specialists)
 - **Crew Gamma (Excellence)**: Quality & Security agents
 
 ### Key Components
@@ -47,7 +47,8 @@ The project follows a hierarchical multi-agent orchestration model:
 ├── Team/
 │   ├── Coordination/
 │   │   └── MAESTRO - Multi-Agent Orchestrator.md
-│   ├── Design and Implementation/      # 57 specialist agents
+│   ├── Design and Implementation/      # 58 specialist agents
+│   │   ├── AERO - Glassmorphism UI Specialist.md
 │   │   ├── AURELIA - Design System and UI Specialist.md
 │   │   ├── CASSANDRA - Database Engineer Specialist.md
 │   │   ├── CRONOS - Cloud Platform and DevOps Specialist.md
@@ -87,7 +88,7 @@ This project uses "Vibe Coding" methodology - rapid, taste-driven iteration that
 
 ## Technology Stack (Target)
 
-**Frontend:** React/Next.js with PWA capabilities
+**Frontend:** React/Next.js with PWA capabilities, glassmorphism UI design system
 **Backend:** Node.js/Express or Python/Django (microservices)
 **Database:** PostgreSQL, Redis, S3, Elasticsearch
 **AI/ML:** OpenAI API, Nano Banana API, custom ML models
@@ -99,6 +100,7 @@ This project uses "Vibe Coding" methodology - rapid, taste-driven iteration that
 - `1_Vibe_Coding/Informations/product.md`: Complete PRD with technical specifications
 - `1_Vibe_Coding/Procedures/best_practices.md`: Multi-agent coordination best practices
 - `1_Vibe_Coding/Team/Coordination/MAESTRO - Multi-Agent Orchestrator.md`: System orchestration guidelines
+- `1_Vibe_Coding/Team/Design and Implementation/AERO - Glassmorphism UI Specialist.md`: Glassmorphism design system and Windows Aero-style UI components
 - `1_Vibe_Coding/Prompt/Prompt.md`: Core system prompt and operational guidelines
 
 ## CRITICAL OPERATING GUIDELINES
