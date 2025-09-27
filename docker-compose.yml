@@ -39,8 +39,10 @@ services:
       - ssl_certs:/etc/nginx/ssl
       - uploads_data:/var/www/uploads:ro
     depends_on:
-      - api
-      - frontend
+      api:
+        condition: service_healthy
+      frontend:
+        condition: service_healthy
     networks:
       orcamentos-network:
         ipv4_address: 172.20.0.10

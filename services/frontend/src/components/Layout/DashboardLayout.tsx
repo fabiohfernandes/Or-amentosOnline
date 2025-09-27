@@ -63,8 +63,8 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         <div className="fixed inset-y-0 left-0 flex w-64 flex-col bg-white shadow-xl">
           <div className="flex h-16 items-center justify-between px-6 bg-primary-600">
             <div className="flex items-center space-x-2">
-              <div className="h-8 w-8 rounded-lg bg-white flex items-center justify-center">
-                <span className="text-primary-600 font-bold text-sm">O</span>
+              <div className="h-8 w-8 rounded-lg flex items-center justify-center">
+                <img src="/favicon-16x16.png" alt="OrçamentosOnline" className="h-8 w-8" />
               </div>
               <span className="text-white font-semibold text-lg">
                 {appConfig.appName}
@@ -120,8 +120,8 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           {/* Logo */}
           <div className="flex items-center h-16 px-6 bg-primary-600">
             <div className="flex items-center space-x-2">
-              <div className="h-8 w-8 rounded-lg bg-white flex items-center justify-center">
-                <span className="text-primary-600 font-bold text-sm">O</span>
+              <div className="h-8 w-8 rounded-lg flex items-center justify-center">
+                <img src="/favicon-16x16.png" alt="OrçamentosOnline" className="h-8 w-8" />
               </div>
               <span className="text-white font-semibold text-lg">
                 {appConfig.appName}
