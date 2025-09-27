@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-**⚠️ BEFORE ANY ACTION I WILL READ THE FILE GUARDRAILS.MD ⚠️**
+**⚠️ BEFORE EVERY STEP OF DEVELOPMENT I WILL READ GUARDRAILS.MD BEFORE ACTING ⚠️**
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
